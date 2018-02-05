@@ -10,6 +10,7 @@
 
 #include "H5Cpp.h"
 #include <vector>
+#include <memory>
 
 #define CPH_5_MAX_DIMS (32)
 
@@ -441,7 +442,8 @@ public:
         LT_INT32,
         LT_INT64,
         LT_FLOAT,
-        LT_DOUBLE
+        LT_DOUBLE,
+        LT_STRING
     };
     
     // Utility structs for determing leaf based on type
@@ -449,46 +451,7 @@ public:
     struct IsLeaf {
         enum { Get = LT_IS_NOT_LEAF };
     };
-    template<>
-    struct IsLeaf<uint8_t> {
-        enum { Get = LT_UINT8 };
-    };
-    template<>
-    struct IsLeaf<uint16_t> {
-        enum { Get = LT_UINT16 };
-    };
-    template<>
-    struct IsLeaf<uint32_t> {
-        enum { Get = LT_UINT32 };
-    };
-    template<>
-    struct IsLeaf<uint64_t> {
-        enum { Get = LT_UINT64 };
-    };
-    template<>
-    struct IsLeaf<int8_t> {
-        enum { Get = LT_INT8 };
-    };
-    template<>
-    struct IsLeaf<int16_t> {
-        enum { Get = LT_INT16 };
-    };
-    template<>
-    struct IsLeaf<int32_t> {
-        enum { Get = LT_INT32 };
-    };
-    template<>
-    struct IsLeaf<int64_t> {
-        enum { Get = LT_INT64 };
-    };
-    template<>
-    struct IsLeaf<float> {
-        enum { Get = LT_FLOAT };
-    };
-    template<>
-    struct IsLeaf<double> {
-        enum { Get = LT_DOUBLE };
-    };
+
     
     virtual CPH5LeafType getLeafType() const = 0;
     virtual bool getValIfLeaf(void *p) = 0;
@@ -513,7 +476,50 @@ public:
 };
 
 
-
+template<>
+struct CPH5TreeNode::IsLeaf<uint8_t> {
+    enum { Get = LT_UINT8 };
+};
+template<>
+struct CPH5TreeNode::IsLeaf<uint16_t> {
+    enum { Get = LT_UINT16 };
+};
+template<>
+struct CPH5TreeNode::IsLeaf<uint32_t> {
+    enum { Get = LT_UINT32 };
+};
+template<>
+struct CPH5TreeNode::IsLeaf<uint64_t> {
+    enum { Get = LT_UINT64 };
+};
+template<>
+struct CPH5TreeNode::IsLeaf<int8_t> {
+    enum { Get = LT_INT8 };
+};
+template<>
+struct CPH5TreeNode::IsLeaf<int16_t> {
+    enum { Get = LT_INT16 };
+};
+template<>
+struct CPH5TreeNode::IsLeaf<int32_t> {
+    enum { Get = LT_INT32 };
+};
+template<>
+struct CPH5TreeNode::IsLeaf<int64_t> {
+    enum { Get = LT_INT64 };
+};
+template<>
+struct CPH5TreeNode::IsLeaf<float> {
+    enum { Get = LT_FLOAT };
+};
+template<>
+struct CPH5TreeNode::IsLeaf<double> {
+    enum { Get = LT_DOUBLE };
+};
+template<>
+struct CPH5TreeNode::IsLeaf<std::string> {
+    enum { Get = LT_STRING };
+};
 
 /*!
  * \brief The CPH5GroupMember class is a base interface class

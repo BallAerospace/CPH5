@@ -86,7 +86,7 @@ public:
             delete mExternalChildren[i];
         }
         mExternalChildren.clear();
-        
+        mAdopteeChildren.clear();
         if (mpFile != 0) {
             mpFile->close();
             delete mpFile;
@@ -216,6 +216,49 @@ public:
         }
     }
     
+    /*!
+     * \brief Adopts an HDF5 group and opens it up in the target file if the file
+     *        is open
+     * \param shared ptr to the group to add
+     */
+    void adoptAndOpen(std::shared_ptr<CPH5GroupMember> adoptee)
+    {
+        //add the pointer to the vector
+        mAdopteeChildren.push_back(adoptee);
+
+        //check to see if we are open
+        if (mpGroup == nullptr)
+        {
+            //not open yet so only add
+            return;
+        }
+
+        //file is already open so try and open the group
+        adoptee->openR(false);
+
+    }
+
+    /*!
+     * \brief Adopts an HDF5 group and creates it in the target file if the file
+     *        is open
+     * \param shared ptr to the group to add
+     */
+    void adoptAndCreate(std::shared_ptr<CPH5GroupMember> adoptee)
+    {
+        //add the pointer to the vector
+        mAdopteeChildren.push_back(adoptee);
+
+        //check to see if we are open
+        if (mpGroup == nullptr)
+        {
+            //not open yet so only add
+            return;
+        }
+
+        //file is already open so try and open the group
+        adoptee->openR(true);
+
+    }
     
     /*!
      * \brief Creates an H5::Group in the target H5 file if it has been opened.
@@ -369,8 +412,7 @@ public:
         mExternalChildren.push_back(child);
         //mChildren.push_back(child); Don't do this.
     }
-    
-    
+
     /*!
      * \brief Unregisters a CPH5GroupMember (either a CPH5Dataset or another
      *        CPH5Group) from this groups list of children.
@@ -524,12 +566,16 @@ protected:
     // Explicitly disable copy constructor and assignment operator
     CPH5Group(const CPH5Group &other);
     
+    using SharedChildList = std::vector<std::shared_ptr<CPH5GroupMember>>;
+
     typedef std::vector<CPH5GroupMember*> ChildList;
     ChildList mChildren;
     
     // All pointers in this list will also be in mChildren.
     ChildList mExternalChildren;
     
+    // All pointers in here are for adoptee groups only
+    SharedChildList mAdopteeChildren;
     
     /*!
      * \brief Recursive open function. Creates or opens H5::Group object and 
@@ -552,6 +598,12 @@ protected:
              ++it) {
             (*it)->openR(create);
         }
+
+        for (SharedChildList::iterator it = mAdopteeChildren.begin();
+                it != mAdopteeChildren.end();
+                ++it) {
+            (*it)->openR(create);
+        }
         //mpGroup->close();
     }
     
@@ -565,6 +617,13 @@ protected:
             for (ChildList::iterator it = mChildren.begin();
                  it != mChildren.end();
                  ++it) {
+                (*it)->closeR();
+            }
+        }
+        if (!mAdopteeChildren.empty()) {
+            for (SharedChildList::iterator it = mAdopteeChildren.begin();
+                    it != mAdopteeChildren.end();
+                    ++it) {
                 (*it)->closeR();
             }
         }

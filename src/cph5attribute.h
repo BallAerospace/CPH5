@@ -195,7 +195,7 @@ public:
                   std::string name,
                   H5::DataType dataType)
         : CPH5AttributeInterface(name),
-          CPH5AttributeBase(dataType),
+          CPH5AttributeBase<T, IsDerivedFrom<T, CPH5CompType>::Is>(dataType),
           mpParent(parent)
     {
         if (mpParent)
@@ -216,7 +216,7 @@ public:
     CPH5Attribute(CPH5AttributeHolder *parent,
                   std::string name)
         : CPH5AttributeInterface(name),
-          CPH5AttributeBase(),
+          CPH5AttributeBase<T, IsDerivedFrom<T, CPH5CompType>::Is>(),
           mpParent(parent)
     {
         if (mpParent)
@@ -225,6 +225,12 @@ public:
         mDataSpace = H5::DataSpace(0, 0);
     }
     
+    /*!
+     * \brief Destructor. Calls closeR
+     */
+    virtual ~CPH5Attribute() {
+            closeR();
+        }
     
     /*!
      * \brief Recursive open function called from parent. Creates the
@@ -235,11 +241,11 @@ public:
     void openR(bool create)
     {
         if (create)
-            mpAttribute = mpParent->createAttribute(mName,
-                                                    mDataType,
+            this->mpAttribute = mpParent->createAttribute(mName,
+                                                    this->mDataType,
                                                     mDataSpace);
         else
-            mpAttribute = mpParent->openAttribute(mName);
+            this->mpAttribute = mpParent->openAttribute(mName);
     }
     
     
@@ -249,10 +255,10 @@ public:
      */
     void closeR()
     {
-        if (mpAttribute != 0) {
-            mpAttribute->close();
-            delete mpAttribute;
-            mpAttribute = 0;
+        if (this->mpAttribute != 0) {
+            this->mpAttribute->close();
+            delete this->mpAttribute;
+            this->mpAttribute = 0;
         }
     }
     
@@ -262,7 +268,7 @@ public:
      * \param other T object reference to assign from.
      */
     void operator=(const T &other) {
-        CPH5AttributeBase::operator=(other);
+        CPH5AttributeBase<T, IsDerivedFrom<T, CPH5CompType>::Is>::operator=(other);
     }
     
     /*!

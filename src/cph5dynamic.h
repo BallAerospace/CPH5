@@ -217,20 +217,13 @@ class CPH5Dynamic {
         }
     }
     
-    template<typename T> static H5T_sign_t getH5Sign() {
+    template<typename T> inline static H5T_sign_t getH5Sign() {
         return H5T_SGN_ERROR;
     }
-    template<> static H5T_sign_t getH5Sign<int8_t>() { return H5T_SGN_2; }
-    template<> static H5T_sign_t getH5Sign<int16_t>() { return H5T_SGN_2; }
-    template<> static H5T_sign_t getH5Sign<int32_t>() { return H5T_SGN_2; }
-    template<> static H5T_sign_t getH5Sign<int64_t>() { return H5T_SGN_2; }
-    template<> static H5T_sign_t getH5Sign<uint8_t>() { return H5T_SGN_NONE; }
-    template<> static H5T_sign_t getH5Sign<uint16_t>() { return H5T_SGN_NONE; }
-    template<> static H5T_sign_t getH5Sign<uint32_t>() { return H5T_SGN_NONE; }
-    template<> static H5T_sign_t getH5Sign<uint64_t>() { return H5T_SGN_NONE; }
+
     
     template<typename T>
-    static bool memberAdderIf(H5::DataType &h5type, CPH5CompType *fill, std::string name) {
+    inline static bool memberAdderIf(const H5::DataType &h5type, CPH5CompType *fill, std::string name) {
         if (getH5Sign<T>() == H5Tget_sign(h5type.getId()) &&
             h5type.getSize() == sizeof(T)) {
             auto *pAdd = new CPH5CompMember<T>(fill, name, h5type);
@@ -240,30 +233,12 @@ class CPH5Dynamic {
         return false;
     }
     
-    template<>
-    static bool memberAdderIf<float>(H5::DataType &h5type, CPH5CompType *fill, std::string name) {
-        if (h5type.getSize() == sizeof(float)) {
-            auto *pAdd = new CPH5CompMember<float>(fill, name, h5type);
-            fill->registerExternalMember(pAdd);
-            return true;
-        }
-        return false;
-    }
-    
-    template<>
-    static bool memberAdderIf<double>(H5::DataType &h5type, CPH5CompType *fill, std::string name) {
-        if (h5type.getSize() == sizeof(double)) {
-            auto *pAdd = new CPH5CompMember<double>(fill, name, h5type);
-            fill->registerExternalMember(pAdd);
-            return true;
-        }
-        return false;
-    }
+
     
     
     // The Array stuff
     template<typename T>
-    static bool arrayAddIf(H5::DataType &h5type, CPH5CompType *fill, std::string name, int nElements) {
+    inline static bool arrayAddIf(H5::DataType &h5type, CPH5CompType *fill, std::string name, int nElements) {
         if (getH5Sign<T>() == H5Tget_sign(h5type.getId()) &&
             h5type.getSize() == sizeof(T)) {
             auto *pAdd = new CPH5CompMemberArrayCommon<T, IS_NOT_DERIVED>(fill, name, h5type, nElements);
@@ -273,117 +248,11 @@ class CPH5Dynamic {
         return false;
     }
     
-    template<>
-    static bool arrayAddIf<float>(H5::DataType &h5type, CPH5CompType *fill, std::string name, int nElements) {
-        if (h5type.getSize() == sizeof(float)) {
-            auto *pAdd = new CPH5CompMemberArrayCommon<float, IS_NOT_DERIVED>(fill, name, h5type, nElements);
-            fill->registerExternalMember(pAdd);
-            return true;
-        }
-        return false;
-    }
-    
-    template<>
-    static bool arrayAddIf<double>(H5::DataType &h5type, CPH5CompType *fill, std::string name, int nElements) {
-        if (h5type.getSize() == sizeof(double)) {
-            auto *pAdd = new CPH5CompMemberArrayCommon<double, IS_NOT_DERIVED>(fill, name, h5type, nElements);
-            fill->registerExternalMember(pAdd);
-            return true;
-        }
-        return false;
-    }
+
     
     
-    
-    static void recurseComptype(H5::CompType &h5type, CPH5CompType *fill) {
-        // Recursively create the comptype here.
-        int numMembers = h5type.getNmembers();
-        std::vector<std::string> memNames;
-        for (int i = 0; i < numMembers; ++i) {
-            memNames.push_back(h5type.getMemberName(i));
-        }
-        
-        for (int i = 0; i < numMembers; ++i) {
-            H5T_class_t memClass = h5type.getMemberClass(i);
-            if (memClass == H5T_COMPOUND) {
-                auto *pCompToAdd = new CPH5CompMember<CPH5CompType>(fill,
-                                                                    memNames.at(i),
-                                                                    h5type.getMemberCompType(i));
-                recurseComptype(h5type.getMemberCompType(i), dynamic_cast<CPH5CompType*>(pCompToAdd));
-                fill->registerExternalMember(pCompToAdd);
-            } else if (memClass == H5T_INTEGER) {
-                bool success = false;
-                success = success || memberAdderIf<int8_t>  (h5type.getMemberDataType(i), fill, memNames.at(i));
-                success = success || memberAdderIf<int16_t> (h5type.getMemberDataType(i), fill, memNames.at(i));
-                success = success || memberAdderIf<int32_t> (h5type.getMemberDataType(i), fill, memNames.at(i));
-                success = success || memberAdderIf<int64_t> (h5type.getMemberDataType(i), fill, memNames.at(i));
-                success = success || memberAdderIf<uint8_t> (h5type.getMemberDataType(i), fill, memNames.at(i));
-                success = success || memberAdderIf<uint16_t>(h5type.getMemberDataType(i), fill, memNames.at(i));
-                success = success || memberAdderIf<uint32_t>(h5type.getMemberDataType(i), fill, memNames.at(i));
-                success = success || memberAdderIf<uint64_t>(h5type.getMemberDataType(i), fill, memNames.at(i));
-                if (!success) {
-                    //TODO error here?
-                    throw "BAD FAIL";
-                }
-            } else if (memClass == H5T_FLOAT) {
-                bool success = false;
-                success = success || memberAdderIf<float>(h5type.getMemberDataType(i), fill, memNames.at(i));
-                success = success || memberAdderIf<double>(h5type.getMemberDataType(i), fill, memNames.at(i));
-                if (!success) {
-                    //TODO error here?
-                    throw "BAD FAIL";
-                }
-            } else if (memClass == H5T_ARRAY) {
-                H5::ArrayType arrType(h5type.getMemberArrayType(i));
-                int arrRank = arrType.getArrayNDims();
-                // Only support 1-dimensional arrays right now
-                if (arrRank == 1) {
-                    hsize_t nElements = 0;
-                    arrType.getArrayDims(&nElements);
-                    H5::DataType baseType = arrType.getSuper();
-                    H5T_class_t elemClass = baseType.getClass();
-                    if (elemClass == H5T_COMPOUND) {
-                        auto *pCompArrToAdd = new CPH5CompMemberArrayCommon<CPH5CompType, IS_DERIVED>(fill, memNames.at(i), baseType, nElements);
-                        for (int cid = 0; cid < nElements; ++cid) {
-                            H5::CompType h5ct(baseType.getId());
-                            recurseComptype(h5ct, dynamic_cast<CPH5CompType*>(pCompArrToAdd->getCompTypeObjAtBypass(cid)));
-                            (pCompArrToAdd->getCompTypeObjAtBypass(cid))->setArrayParent(pCompArrToAdd);
-                        }
-                        fill->registerExternalMember(pCompArrToAdd);
-                    } else if (elemClass == H5T_INTEGER) {
-                        bool success = false;
-                        success = success || arrayAddIf<int8_t>  (baseType, fill, memNames.at(i), nElements);
-                        success = success || arrayAddIf<int16_t> (baseType, fill, memNames.at(i), nElements);
-                        success = success || arrayAddIf<int32_t> (baseType, fill, memNames.at(i), nElements);
-                        success = success || arrayAddIf<int64_t> (baseType, fill, memNames.at(i), nElements);
-                        success = success || arrayAddIf<uint8_t> (baseType, fill, memNames.at(i), nElements);
-                        success = success || arrayAddIf<uint16_t>(baseType, fill, memNames.at(i), nElements);
-                        success = success || arrayAddIf<uint32_t>(baseType, fill, memNames.at(i), nElements);
-                        success = success || arrayAddIf<uint64_t>(baseType, fill, memNames.at(i), nElements);
-                        if (!success) {
-                            //TODO error unknown type?
-                            throw "BAD UNKNOWN ARRAY TYPE";
-                        }
-                    } else if (elemClass == H5T_FLOAT) {
-                        bool success = false;
-                        success = success || arrayAddIf<float> (baseType, fill, memNames.at(i), nElements);
-                        success = success || arrayAddIf<double>(baseType, fill, memNames.at(i), nElements);
-                        if (!success) {
-                            //TODO error unknown type?
-                            throw "BAD UNKNOWN ARRAY FLOAT TYPE";
-                        }
-                    } else {
-                        //TODO error here?
-                    }
-                } else {
-                    //TODO error here?
-                }
-            } else {
-                // TODO error unknown type?
-                throw "BAD UNKNOWN TYPE";
-            }
-        }
-    }
+    //declared below
+    inline static void recurseComptype(const H5::CompType &h5type, CPH5CompType *fill) ;
     
     static void doDataset(CPH5Group &cph5Top, H5::Group &topGroup, std::string dsetname) {
         H5::DataSet dset = topGroup.openDataSet(dsetname);
@@ -471,4 +340,144 @@ public:
     
 };
 
+template<> inline H5T_sign_t CPH5Dynamic::getH5Sign<int8_t>() { return H5T_SGN_2; }
+template<> inline H5T_sign_t CPH5Dynamic::getH5Sign<int16_t>() { return H5T_SGN_2; }
+template<> inline H5T_sign_t CPH5Dynamic::getH5Sign<int32_t>() { return H5T_SGN_2; }
+template<> inline H5T_sign_t CPH5Dynamic::getH5Sign<int64_t>() { return H5T_SGN_2; }
+template<> inline H5T_sign_t CPH5Dynamic::getH5Sign<uint8_t>() { return H5T_SGN_NONE; }
+template<> inline H5T_sign_t CPH5Dynamic::getH5Sign<uint16_t>() { return H5T_SGN_NONE; }
+template<> inline H5T_sign_t CPH5Dynamic::getH5Sign<uint32_t>() { return H5T_SGN_NONE; }
+template<> inline H5T_sign_t CPH5Dynamic::getH5Sign<uint64_t>() { return H5T_SGN_NONE; }
+
+
+template<>
+inline bool CPH5Dynamic::memberAdderIf<float>(const H5::DataType &h5type, CPH5CompType *fill, std::string name) {
+    if (h5type.getSize() == sizeof(float)) {
+        auto *pAdd = new CPH5CompMember<float>(fill, name, h5type);
+        fill->registerExternalMember(pAdd);
+        return true;
+    }
+    return false;
+}
+
+template<>
+inline bool CPH5Dynamic::memberAdderIf<double>(const H5::DataType &h5type, CPH5CompType *fill, std::string name) {
+    if (h5type.getSize() == sizeof(double)) {
+        auto *pAdd = new CPH5CompMember<double>(fill, name, h5type);
+        fill->registerExternalMember(pAdd);
+        return true;
+    }
+    return false;
+}
+
+template<>
+inline bool CPH5Dynamic::arrayAddIf<float>(H5::DataType &h5type, CPH5CompType *fill, std::string name, int nElements) {
+    if (h5type.getSize() == sizeof(float)) {
+        auto *pAdd = new CPH5CompMemberArrayCommon<float, IS_NOT_DERIVED>(fill, name, h5type, nElements);
+        fill->registerExternalMember(pAdd);
+        return true;
+    }
+    return false;
+}
+
+template<>
+inline bool CPH5Dynamic::arrayAddIf<double>(H5::DataType &h5type, CPH5CompType *fill, std::string name, int nElements) {
+    if (h5type.getSize() == sizeof(double)) {
+        auto *pAdd = new CPH5CompMemberArrayCommon<double, IS_NOT_DERIVED>(fill, name, h5type, nElements);
+        fill->registerExternalMember(pAdd);
+        return true;
+    }
+    return false;
+}
+
+
+void CPH5Dynamic::recurseComptype(const H5::CompType &h5type, CPH5CompType *fill) {
+    // Recursively create the comptype here.
+    int numMembers = h5type.getNmembers();
+    std::vector<std::string> memNames;
+    for (int i = 0; i < numMembers; ++i) {
+        memNames.push_back(h5type.getMemberName(i));
+    }
+
+    for (int i = 0; i < numMembers; ++i) {
+        H5T_class_t memClass = h5type.getMemberClass(i);
+        if (memClass == H5T_COMPOUND) {
+            auto *pCompToAdd = new CPH5CompMember<CPH5CompType>(fill,
+                                                                memNames.at(i),
+                                                                h5type.getMemberCompType(i));
+            recurseComptype(h5type.getMemberCompType(i), dynamic_cast<CPH5CompType*>(pCompToAdd));
+            fill->registerExternalMember(pCompToAdd);
+        } else if (memClass == H5T_INTEGER) {
+            bool success = false;
+            success = success || memberAdderIf<int8_t>  (h5type.getMemberDataType(i), fill, memNames.at(i));
+            success = success || memberAdderIf<int16_t> (h5type.getMemberDataType(i), fill, memNames.at(i));
+            success = success || memberAdderIf<int32_t> (h5type.getMemberDataType(i), fill, memNames.at(i));
+            success = success || memberAdderIf<int64_t> (h5type.getMemberDataType(i), fill, memNames.at(i));
+            success = success || memberAdderIf<uint8_t> (h5type.getMemberDataType(i), fill, memNames.at(i));
+            success = success || memberAdderIf<uint16_t>(h5type.getMemberDataType(i), fill, memNames.at(i));
+            success = success || memberAdderIf<uint32_t>(h5type.getMemberDataType(i), fill, memNames.at(i));
+            success = success || memberAdderIf<uint64_t>(h5type.getMemberDataType(i), fill, memNames.at(i));
+            if (!success) {
+                //TODO error here?
+                throw "BAD FAIL";
+            }
+        } else if (memClass == H5T_FLOAT) {
+            bool success = false;
+            success = success || memberAdderIf<float>(h5type.getMemberDataType(i), fill, memNames.at(i));
+            success = success || memberAdderIf<double>(h5type.getMemberDataType(i), fill, memNames.at(i));
+            if (!success) {
+                //TODO error here?
+                throw "BAD FAIL";
+            }
+        } else if (memClass == H5T_ARRAY) {
+            H5::ArrayType arrType(h5type.getMemberArrayType(i));
+            int arrRank = arrType.getArrayNDims();
+            // Only support 1-dimensional arrays right now
+            if (arrRank == 1) {
+                hsize_t nElements = 0;
+                arrType.getArrayDims(&nElements);
+                H5::DataType baseType = arrType.getSuper();
+                H5T_class_t elemClass = baseType.getClass();
+                if (elemClass == H5T_COMPOUND) {
+                    auto *pCompArrToAdd = new CPH5CompMemberArrayCommon<CPH5CompType, IS_DERIVED>(fill, memNames.at(i), baseType, nElements);
+                    for (int cid = 0; cid < nElements; ++cid) {
+                        H5::CompType h5ct(baseType.getId());
+                        recurseComptype(h5ct, dynamic_cast<CPH5CompType*>(pCompArrToAdd->getCompTypeObjAtBypass(cid)));
+                        (pCompArrToAdd->getCompTypeObjAtBypass(cid))->setArrayParent(pCompArrToAdd);
+                    }
+                    fill->registerExternalMember(pCompArrToAdd);
+                } else if (elemClass == H5T_INTEGER) {
+                    bool success = false;
+                    success = success || arrayAddIf<int8_t>  (baseType, fill, memNames.at(i), nElements);
+                    success = success || arrayAddIf<int16_t> (baseType, fill, memNames.at(i), nElements);
+                    success = success || arrayAddIf<int32_t> (baseType, fill, memNames.at(i), nElements);
+                    success = success || arrayAddIf<int64_t> (baseType, fill, memNames.at(i), nElements);
+                    success = success || arrayAddIf<uint8_t> (baseType, fill, memNames.at(i), nElements);
+                    success = success || arrayAddIf<uint16_t>(baseType, fill, memNames.at(i), nElements);
+                    success = success || arrayAddIf<uint32_t>(baseType, fill, memNames.at(i), nElements);
+                    success = success || arrayAddIf<uint64_t>(baseType, fill, memNames.at(i), nElements);
+                    if (!success) {
+                        //TODO error unknown type?
+                        throw "BAD UNKNOWN ARRAY TYPE";
+                    }
+                } else if (elemClass == H5T_FLOAT) {
+                    bool success = false;
+                    success = success || arrayAddIf<float> (baseType, fill, memNames.at(i), nElements);
+                    success = success || arrayAddIf<double>(baseType, fill, memNames.at(i), nElements);
+                    if (!success) {
+                        //TODO error unknown type?
+                        throw "BAD UNKNOWN ARRAY FLOAT TYPE";
+                    }
+                } else {
+                    //TODO error here?
+                }
+            } else {
+                //TODO error here?
+            }
+        } else {
+            // TODO error unknown type?
+            throw "BAD UNKNOWN TYPE";
+        }
+    }
+}
 #endif // CPH5DYNAMIC_H

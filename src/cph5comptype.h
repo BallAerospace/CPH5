@@ -22,8 +22,273 @@
 //TODO add support for assignment operator based copying of dynamic data.
 
 
-
 class CPH5CompMemberArrayBase;
+class CPH5CompMemberBase;
+
+/*!
+ * \brief The CPH5CompType class is a base class for users to override when
+ *        creating custom HDF5 compound datatypes. It should be subclassed,
+ *        and then have members added to it using the wrapper template classes
+ *        CPH5CompMember or CPH5CompMemberArray.
+ *
+ * Example: <pre>
+ * struct MyType : public CPH5CompType {
+ *    CPH5CompMember<int> intMem;
+ *    CPH5CompMember<double> dblMem;
+ *
+ *    MyType()
+ *      : intMem(this, "intMem", H5::PredType::NATIVE_INT),
+ *        dblMem(this, "dblMem", H5::PredType::NATIVE_DOUBLE)
+ *    {} // NOOP
+ * }</pre>
+ */
+class CPH5CompType
+{
+public:
+
+    /*!
+     * \brief CPH5CompType Constructor. Does nothing special.
+     */
+    inline CPH5CompType();
+
+    /*!
+     * \brief CPH5CompType Destructor. Only deletes external children, if
+     *        any exist.
+     */
+    virtual inline ~CPH5CompType();
+
+    /*!
+     * \brief Iterates recursively over all children and creates an
+     *        H5::CompType representing this compound type.
+     * \return The H5::CompType to be visible in the target HDF5 file.
+     */
+    virtual inline H5::CompType getCompType();
+
+
+    /*!
+     * \brief Registers a CPH5CompMember as belonging to this comptype object.
+     * \param member CPH5CompMember pointer to register.
+     */
+    inline void registerMember(CPH5CompMemberBase *member);
+
+    /*!
+     * \brief Registers a CPH5CompMember as belonging to this comptype object,
+     *        but adds it to the list of objects to be deleted upon
+     *        destruction.
+     * \param member CPH5CompMember pointer to register.
+     */
+    inline void registerExternalMember(CPH5CompMemberBase *member);
+
+    /*!
+     * \brief Sets the CPH5IOFacility object that this compound object should
+     *        use when reading and writing the target HDF5 file. This is called
+     *        by the parent dataset or attribute or compound member array object.
+     * \param facility Pointer to CPH5IOFacility object to use.
+     */
+    inline void setIOFacility(CPH5IOFacility *facility);
+
+
+    /*!
+     * \brief Returns the pointer to the currently set CPH5IOFacility to use
+     *        when reading or writing the target HDF5 file.
+     * \return Pointer to CPH5IOFacility currently stored, even if it is 0.
+     */
+    virtual inline CPH5IOFacility *getIOFacility() const;
+
+
+
+    // Doing this latch here will then allow the default assignment operators
+    // for the members to copy a valid value.
+    /*!
+     * \brief operator = Overloaded assignment operator. Used to read data from
+     *        another CPH5CompType object that belongs to a dataset or
+     *        attribute, and store into this object.
+     * \param other Object to have read data from file and copy data from.
+     * \return Reference to this.
+     *
+     * Calls the others latchAll function which will read all data from the
+     * target HDF5 file into the other object's local memory, if it belongs
+     * to an object tree with an open target HDF5 file. This function <b>
+     * ONLY</b> tells the other to latch its data and does not explicitly
+     * copy the data over. After this function executes, all of the assignment
+     * operators for the members get called and the data is copied member-
+     * per-member at that point.
+     */
+    CPH5CompType &operator=(CPH5CompType &other) {
+        other.latchAll();
+        return *this;
+    }
+
+
+    /*!
+     * \brief If this member instance is a sub-element (recursively) of an
+     *        compound member array type, it cannot be individually read/written,
+     *        because the elements within an array cannot be sub-divided.
+     *        This function is called by the highest level array and recursively
+     *        executed through all children to notify them that reads and writes
+     *        need to be executed at the array level.
+     * \param pArrParent Pointer to the inverse-recursive parent array object.
+     */
+    // If this is called it means this compound object is a member of an array.
+    // All reads and writes need to happen via the parent array.
+    inline void setArrayParent(CPH5CompMemberArrayBase *pArrParent) ;
+
+
+
+    /*!
+     * \brief Calling this will write all data stored in local memory in the
+     *        members to the target HDF5 file, if it is open.
+     */
+    inline void writeAll();
+
+
+
+    /*!
+     * \brief Reads all members from the target HDF5 file, if it is open, into
+     *        the members local memory.
+     */
+    inline void readAll();
+
+
+    /*!
+     * \brief Iterates over all children and calls their copyAndMove function.
+     *        Results in data being copied from the members local storage into
+     *        the buffer (and the pointer reference to the buffer being
+     *        incremented).
+     * \param ptr Buffer to pass to children to copy data into.
+     */
+    inline void copyAllAndMove(char *&ptr) const;
+
+
+    /*!
+     * \brief Iterates over all children and calls their latchAndMove function.
+     *        Results in data being copied from the buffer given into the
+     *        members local storage (and the pointer reference to the buffer
+     *        being incremented).
+     * \param ptr Pointer to pass to children to copy data from.
+     */
+    inline void latchAllAndMove(char *&ptr);
+
+
+    /*!
+     * \brief Performs the same action as latchAndMove, but performs an
+     *        endian swap. Useful for recursive operations requiring
+     *        an endian swap.
+     * \param ptr Buffer to read data from and then increment. Buffer is
+     *        unchanged, only internal value is endian-swapped.
+     */
+    inline void latchAllAndMoveWithSwap(char *&ptr);
+
+
+
+
+    /*!
+     * \brief Calculates the total memory size of all the members belonging to
+     *        this compound type.
+     * \return The total memory size of this compound type.
+     */
+    inline int getTotalMemorySize() const ;
+
+
+    /*!
+     * \brief This is the terminal nestCompTypeIR function. See CPH5CompMember
+     *        nestCompTypeIR function. Does not do anything.
+     * \param leaf CompType parameter
+     * \return The parameter, without changing it.
+     */
+    virtual inline H5::CompType nestCompTypeIR(H5::CompType leaf);
+
+
+    inline int numChildren() const;
+
+
+    inline CPH5CompMemberBase *getChildAt(int ind);
+
+    // CPH5CompType is not and cannot be a true TreeNode subclass.
+    // But, it is needed to be a treenode. Make a treenode subclass
+    // member class inside this and modify the function in
+    // CompMemberArray that returns a reference to an element
+    // (for compound arrays) to go 1 step further and retrieve
+    // the subclass reference to this non-treenode treenode.
+
+    class CompTreeWrapper : public CPH5TreeNode {
+    public:
+        inline CompTreeWrapper(CPH5CompType *parent);
+
+        //TODO document
+        virtual inline CPH5LeafType getLeafType() const override ;
+
+        //TODO document
+        virtual inline bool getValIfLeaf(void *p) override ;
+
+        //TODO document
+        virtual inline bool canIndexInto() const ;
+
+        //TODO document
+        virtual inline CPH5TreeNode *indexInto(int i) override ;
+
+        //TODO document
+        virtual inline int getIndexableSize() const override ;
+
+        //TODO document
+        inline CPH5LeafType getElementType() const;
+
+        //TODO document
+        inline int getMemorySizeBelow() const;
+
+        //TODO document
+        inline bool readAllBelow(void *p);
+
+        //TODO document
+        inline void *getMemoryLocation() const override;
+
+        //TODO document
+        inline virtual std::vector<std::string> getChildrenNames() const override ;
+
+        //TODO document
+        inline virtual CPH5TreeNode *getChildByName(std::string name) const override ;
+
+
+    private:
+        CPH5CompType *mParent;
+    };
+
+    inline CPH5TreeNode *getTreeNode() const ;
+
+    //TODO document
+    inline std::vector<std::string> getChildrenNames() const ;
+
+    //TODO document
+    inline CPH5CompMemberBase *getMemberByName(std::string name) const ;
+
+
+protected:
+
+
+    /*!
+     * \brief Iterates over all children and reads the entire comptype from
+     *        the target HDF5 file.
+     */
+    inline void latchAll();
+
+    typedef std::vector<CPH5CompMemberBase *> ChildList;
+    ChildList mChildren;
+    ChildList mExternalChildren;
+
+    mutable CPH5IOFacility *mpFacility;
+
+    CPH5CompMemberArrayBase *mpArrParent;
+
+private:
+
+    CPH5CompType(CPH5CompType &&other); // Disabled move
+    CPH5CompType &operator=(CPH5CompType &&other); // Disabled move-assign
+
+    mutable CompTreeWrapper mCompTreeWrapper;
+};
+
+
+
 
 /*!
  * \brief The CPH5CompMemberBase class is a pure interface class to describe an
@@ -70,9 +335,6 @@ public:
     virtual void signalChange() = 0;
 };
 
-
-// Forward declaration
-class CPH5CompType;
 
 
 /*!
@@ -460,7 +722,7 @@ public:
      * \return int for size.
      */
     int getSize() const {
-        return getTotalMemorySize();
+        return this->getTotalMemorySize();
     }
     
     
@@ -473,7 +735,7 @@ public:
      * \param ptr Buffer to read data from and then increment.
      */
     void latchAndMove(char *&ptr) {
-        latchAllAndMove(ptr);
+        this->latchAllAndMove(ptr);
     }
     
     
@@ -487,7 +749,7 @@ public:
      *        unchanged, only internal value is endian-swapped.
      */
     void latchAndMoveWithSwap(char *&ptr) {
-        latchAllAndMoveWithSwap(ptr);
+        this->latchAllAndMoveWithSwap(ptr);
     }
 
     
@@ -497,7 +759,7 @@ public:
     /*!
      * \brief Writes data from local memory into the buffer passed in by ptr
      *        and then increments ptr (which is a reference) by the number of
-     *        bytes written. Used to read data into a larger chunk of memory 
+     *        bytes written. Used to read data into a larger chunk of memory
      *        for the whole compound type member-by-member. Often called
      *        after a raw read into such a chunk of memory. This is done
      *        recursively for all children CompMember objects since this is
@@ -506,7 +768,7 @@ public:
      * \param ptr Buffer to write data into and then increment.
      */
     void copyAndMove(char *&ptr) const {
-        copyAllAndMove(ptr);
+        this->copyAllAndMove(ptr);
     }
     
     
@@ -634,502 +896,342 @@ protected:
 };
 
 
-/*!
- * \brief The CPH5CompType class is a base class for users to override when
- *        creating custom HDF5 compound datatypes. It should be subclassed,
- *        and then have members added to it using the wrapper template classes
- *        CPH5CompMember or CPH5CompMemberArray.
- * 
- * Example: <pre>
- * struct MyType : public CPH5CompType {
- *    CPH5CompMember<int> intMem;
- *    CPH5CompMember<double> dblMem;
- * 
- *    MyType()
- *      : intMem(this, "intMem", H5::PredType::NATIVE_INT),
- *        dblMem(this, "dblMem", H5::PredType::NATIVE_DOUBLE)
- *    {} // NOOP
- * }</pre>
- */
-class CPH5CompType
+//definition of CHP5CompType
+
+CPH5CompType::CPH5CompType()
+    : mpFacility(0),
+      mCompTreeWrapper(this),
+      mpArrParent(0)
+{} // NOOP
+
+CPH5CompType::~CPH5CompType() {
+    // Delete all the external children
+    for (int i = 0; i < mExternalChildren.size(); ++i) {
+        delete mExternalChildren.at(i);
+    }
+    mExternalChildren.clear();
+}
+
+H5::CompType CPH5CompType::getCompType()
 {
-public:
-    
-    /*!
-     * \brief CPH5CompType Constructor. Does nothing special.
-     */
-    CPH5CompType()
-        : mpFacility(0),
-          mCompTreeWrapper(this),
-          mpArrParent(0)
-    {} // NOOP
-    
-    /*!
-     * \brief CPH5CompType Destructor. Only deletes external children, if
-     *        any exist.
-     */
-    virtual ~CPH5CompType() {
-        // Delete all the external children
-        for (int i = 0; i < mExternalChildren.size(); ++i) {
-            delete mExternalChildren.at(i);
-        }
-        mExternalChildren.clear();
+    // Get the total size of everything
+    size_t size = 0;
+    for(ChildList::iterator it = mChildren.begin();
+        it != mChildren.end();
+        ++it) {
+        size += (*it)->getSize();
     }
-    
-    /*!
-     * \brief Iterates recursively over all children and creates an
-     *        H5::CompType representing this compound type.
-     * \return The H5::CompType to be visible in the target HDF5 file.
-     */
-    virtual H5::CompType getCompType()
-    {
-        // Get the total size of everything
-        size_t size = 0;
-        for(ChildList::iterator it = mChildren.begin();
-            it != mChildren.end();
-            ++it) {
-            size += (*it)->getSize();
-        }
-        H5::CompType h5CompType(size);
-        size = 0;
-        for(ChildList::iterator it = mChildren.begin();
-            it != mChildren.end();
-            ++it) {
-            h5CompType.insertMember((*it)->getName(),
-                                    size,
-                                    (*it)->getType());
-            size += (*it)->getSize();
-        }
-        return h5CompType;
+    H5::CompType h5CompType(size);
+    size = 0;
+    for(ChildList::iterator it = mChildren.begin();
+        it != mChildren.end();
+        ++it) {
+        h5CompType.insertMember((*it)->getName(),
+                                size,
+                                (*it)->getType());
+        size += (*it)->getSize();
     }
-    
-    
-    /*!
-     * \brief Registers a CPH5CompMember as belonging to this comptype object.
-     * \param member CPH5CompMember pointer to register.
-     */
-    void registerMember(CPH5CompMemberBase *member)
-    {
-        mChildren.push_back(member);
-        //CPH5CompType *pc = dynamic_cast<CPH5CompType*>(member);
-        //if (pc != 0) {
-        //    pc->setIOFacility(mpFacility);
-        //}
+    return h5CompType;
+}
+
+
+void CPH5CompType::registerMember(CPH5CompMemberBase *member)
+{
+    mChildren.push_back(member);
+    //CPH5CompType *pc = dynamic_cast<CPH5CompType*>(member);
+    //if (pc != 0) {
+    //    pc->setIOFacility(mpFacility);
+    //}
+}
+
+void CPH5CompType::registerExternalMember(CPH5CompMemberBase *member)
+{
+    mExternalChildren.push_back(member);
+    if (mpArrParent != 0) {
+        member->setArrayParent(mpArrParent);
     }
-    
-    /*!
-     * \brief Registers a CPH5CompMember as belonging to this comptype object,
-     *        but adds it to the list of objects to be deleted upon
-     *        destruction.
-     * \param member CPH5CompMember pointer to register.
-     */
-    void registerExternalMember(CPH5CompMemberBase *member)
-    {
-        mExternalChildren.push_back(member);
-        if (mpArrParent != 0) {
-            member->setArrayParent(mpArrParent);
-        }
+}
+
+void CPH5CompType::setIOFacility(CPH5IOFacility *facility)
+{
+    mpFacility = facility;
+    //for (int i = 0; i < mChildren.size(); ++i) {
+    //    CPH5CompType *pc = dynamic_cast<CPH5CompType*>(mChildren.at(i));
+    //    if (pc != 0) {
+    //        pc->setIOFacility(mpFacility);
+    //    }
+    //}
+}
+
+
+CPH5IOFacility* CPH5CompType::getIOFacility() const
+{
+    //if (mpFacility == 0 && mpArrParent != 0) {
+    //    mpFacility = mpArrParent->getIoFacility();
+    //}
+    return mpFacility;
+}
+
+
+// If this is called it means this compound object is a member of an array.
+// All reads and writes need to happen via the parent array.
+void CPH5CompType::setArrayParent(CPH5CompMemberArrayBase *pArrParent) {
+    mpArrParent = pArrParent;
+    for(ChildList::iterator it = mChildren.begin();
+        it != mChildren.end();
+        ++it) {
+        (*it)->setArrayParent(pArrParent);
     }
-    
-    /*!
-     * \brief Sets the CPH5IOFacility object that this compound object should
-     *        use when reading and writing the target HDF5 file. This is called
-     *        by the parent dataset or attribute or compound member array object.
-     * \param facility Pointer to CPH5IOFacility object to use.
-     */
-    void setIOFacility(CPH5IOFacility *facility)
-    {
-        mpFacility = facility;
-        //for (int i = 0; i < mChildren.size(); ++i) {
-        //    CPH5CompType *pc = dynamic_cast<CPH5CompType*>(mChildren.at(i));
-        //    if (pc != 0) {
-        //        pc->setIOFacility(mpFacility);
-        //    }
-        //}
-    }
-    
-    
-    /*!
-     * \brief Returns the pointer to the currently set CPH5IOFacility to use
-     *        when reading or writing the target HDF5 file.
-     * \return Pointer to CPH5IOFacility currently stored, even if it is 0.
-     */
-    virtual CPH5IOFacility *getIOFacility() const
-    {
-        //if (mpFacility == 0 && mpArrParent != 0) {
-        //    mpFacility = mpArrParent->getIoFacility();
-        //}
-        return mpFacility;
-    }
-    
-    
-    
-    // Doing this latch here will then allow the default assignment operators
-    // for the members to copy a valid value.
-    /*!
-     * \brief operator = Overloaded assignment operator. Used to read data from
-     *        another CPH5CompType object that belongs to a dataset or
-     *        attribute, and store into this object.
-     * \param other Object to have read data from file and copy data from.
-     * \return Reference to this.
-     * 
-     * Calls the others latchAll function which will read all data from the
-     * target HDF5 file into the other object's local memory, if it belongs
-     * to an object tree with an open target HDF5 file. This function <b>
-     * ONLY</b> tells the other to latch its data and does not explicitly
-     * copy the data over. After this function executes, all of the assignment
-     * operators for the members get called and the data is copied member-
-     * per-member at that point.
-     */
-    CPH5CompType &operator=(CPH5CompType &other) {
-        other.latchAll();
-        return *this;
-    }
-    
-    
-    
-    /*!
-     * \brief If this member instance is a sub-element (recursively) of an 
-     *        compound member array type, it cannot be individually read/written,
-     *        because the elements within an array cannot be sub-divided.
-     *        This function is called by the highest level array and recursively
-     *        executed through all children to notify them that reads and writes
-     *        need to be executed at the array level.
-     * \param pArrParent Pointer to the inverse-recursive parent array object.
-     */
-    // If this is called it means this compound object is a member of an array.
-    // All reads and writes need to happen via the parent array.
-    void setArrayParent(CPH5CompMemberArrayBase *pArrParent) {
-        mpArrParent = pArrParent;
-        for(ChildList::iterator it = mChildren.begin();
-            it != mChildren.end();
-            ++it) {
-            (*it)->setArrayParent(pArrParent);
-        }
-    }
-    
-    
-    
-    /*!
-     * \brief Calling this will write all data stored in local memory in the
-     *        members to the target HDF5 file, if it is open.
-     */
-    void writeAll()
-    {
-        H5::CompType type = getCompType();
-        size_t size = type.getSize();
-        char *buf = new char[size];
-        char *ptr = buf;
-        
-        try {
-            if (mpFacility != 0) {
-                for(ChildList::iterator it = mChildren.begin();
-                    it != mChildren.end();
-                    ++it) {
-                    (*it)->copyAndMove(ptr);
-                }
-                mpFacility->write(buf, type);
-            }
-        } catch (...) {
-            delete[] buf;
-            throw;
-        }
-        
-        
-        delete[] buf;
-    }
-    
-    
-    
-    /*!
-     * \brief Reads all members from the target HDF5 file, if it is open, into
-     *        the members local memory.
-     */
-    void readAll()
-    {
-        H5::CompType type = getCompType();
-        size_t size = type.getSize();
-        char *buf = new char[size];
-        char *ptr = buf;
-        
-        try {
-            if (mpFacility != 0) {
-                mpFacility->read(buf, type);
-                for(ChildList::iterator it = mChildren.begin();
-                    it != mChildren.end();
-                    ++it) {
-                    (*it)->latchAndMove(ptr);
-                }
-            }
-        } catch (...) {
-            delete[] buf;
-            throw;
-        }
-        
-        
-        delete[] buf;
-    }
-    
-    
-    /*!
-     * \brief Iterates over all children and calls their copyAndMove function.
-     *        Results in data being copied from the members local storage into
-     *        the buffer (and the pointer reference to the buffer being 
-     *        incremented).
-     * \param ptr Buffer to pass to children to copy data into.
-     */
-    void copyAllAndMove(char *&ptr) const
-    {
-        if (!mChildren.empty()) {
-            for(ChildList::const_iterator it = mChildren.cbegin();
+}
+
+
+void CPH5CompType::writeAll()
+{
+    H5::CompType type = getCompType();
+    size_t size = type.getSize();
+    char *buf = new char[size];
+    char *ptr = buf;
+
+    try {
+        if (mpFacility != 0) {
+            for(ChildList::iterator it = mChildren.begin();
                 it != mChildren.end();
                 ++it) {
                 (*it)->copyAndMove(ptr);
             }
+            mpFacility->write(buf, type);
         }
+    } catch (...) {
+        delete[] buf;
+        throw;
     }
-    
-    
-    /*!
-     * \brief Iterates over all children and calls their latchAndMove function.
-     *        Results in data being copied from the buffer given into the
-     *        members local storage (and the pointer reference to the buffer 
-     *        being incremented).
-     * \param ptr Pointer to pass to children to copy data from.
-     */
-    void latchAllAndMove(char *&ptr)
-    {
-        if (!mChildren.empty()) {
+
+
+    delete[] buf;
+}
+
+
+
+void CPH5CompType::readAll()
+{
+    H5::CompType type = getCompType();
+    size_t size = type.getSize();
+    char *buf = new char[size];
+    char *ptr = buf;
+
+    try {
+        if (mpFacility != 0) {
+            mpFacility->read(buf, type);
             for(ChildList::iterator it = mChildren.begin();
                 it != mChildren.end();
                 ++it) {
                 (*it)->latchAndMove(ptr);
             }
         }
+    } catch (...) {
+        delete[] buf;
+        throw;
     }
-    
-    
-    /*!
-     * \brief Performs the same action as latchAndMove, but performs an
-     *        endian swap. Useful for recursive operations requiring
-     *        an endian swap.
-     * \param ptr Buffer to read data from and then increment. Buffer is
-     *        unchanged, only internal value is endian-swapped.
-     */
-    void latchAllAndMoveWithSwap(char *&ptr) {
-        if (!mChildren.empty()) {
+
+
+    delete[] buf;
+}
+
+
+void CPH5CompType::copyAllAndMove(char *&ptr) const
+{
+    if (!mChildren.empty()) {
+        for(ChildList::const_iterator it = mChildren.cbegin();
+            it != mChildren.end();
+            ++it) {
+            (*it)->copyAndMove(ptr);
+        }
+    }
+}
+
+
+void CPH5CompType::latchAllAndMove(char *&ptr)
+{
+    if (!mChildren.empty()) {
+        for(ChildList::iterator it = mChildren.begin();
+            it != mChildren.end();
+            ++it) {
+            (*it)->latchAndMove(ptr);
+        }
+    }
+}
+
+
+void CPH5CompType::latchAllAndMoveWithSwap(char *&ptr) {
+    if (!mChildren.empty()) {
+        for(ChildList::iterator it = mChildren.begin();
+            it != mChildren.end();
+            ++it) {
+            (*it)->latchAndMoveWithSwap(ptr);
+        }
+    }
+}
+
+
+
+int CPH5CompType::getTotalMemorySize() const {
+    int ret = 0;
+    if (mChildren.size() > 0) {
+        for(ChildList::const_iterator it = mChildren.cbegin();
+            it != mChildren.end();
+            ++it) {
+            ret += (*it)->getSize();
+        }
+    }
+    return ret;
+}
+
+
+H5::CompType CPH5CompType::nestCompTypeIR(H5::CompType leaf)
+{
+    return leaf;
+}
+
+
+int CPH5CompType::numChildren() const {
+    return mChildren.size();
+}
+
+
+CPH5CompMemberBase* CPH5CompType::getChildAt(int ind) {
+    if (ind >= 0 && ind < mChildren.size()) {
+        return mChildren[ind];
+    }
+}
+
+CPH5CompType::CompTreeWrapper::CompTreeWrapper(CPH5CompType *parent)
+    : mParent(parent)
+{} // NOOP
+
+//TODO document
+
+CPH5TreeNode::CPH5LeafType CPH5CompType::CompTreeWrapper::getLeafType() const {
+    // Compound types are never leaves
+    return LT_IS_NOT_LEAF;
+}
+
+//TODO document
+bool CPH5CompType::CompTreeWrapper::getValIfLeaf(void *p) {
+    return false;
+}
+
+//TODO document
+bool CPH5CompType::CompTreeWrapper::canIndexInto() const {
+    return false;
+}
+
+//TODO document
+CPH5TreeNode* CPH5CompType::CompTreeWrapper::indexInto(int i)  {
+    return 0;
+}
+
+//TODO document
+int CPH5CompType::CompTreeWrapper::getIndexableSize() const {
+    return 0;
+}
+
+//TODO document
+ CPH5TreeNode::CPH5LeafType CPH5CompType::CompTreeWrapper::getElementType() const{
+     // A compound type object is never an array
+     return LT_IS_NOT_LEAF;
+ }
+
+ //TODO document
+ int CPH5CompType::CompTreeWrapper::getMemorySizeBelow() const{
+     if (mParent == 0) {
+         return 0;
+     }
+     return mParent->getTotalMemorySize();
+ }
+
+ //TODO document
+ bool CPH5CompType::CompTreeWrapper::readAllBelow(void *p) {
+     if (mParent == 0) {
+         return false;
+     }
+     mParent->readAll();
+     char *temp = reinterpret_cast<char*>(p);
+     mParent->copyAllAndMove(temp);
+     return true;
+ }
+
+ //TODO document
+ void *CPH5CompType::CompTreeWrapper::getMemoryLocation() const {
+     return 0;
+ }
+
+
+//TODO document
+std::vector<std::string> CPH5CompType::CompTreeWrapper::getChildrenNames() const {
+    return mParent->getChildrenNames();
+}
+
+//TODO document
+CPH5TreeNode* CPH5CompType::CompTreeWrapper::getChildByName(std::string name) const {
+    return dynamic_cast<CPH5TreeNode*>(mParent->getMemberByName(name));
+}
+
+
+
+CPH5TreeNode* CPH5CompType::getTreeNode() const {
+    return dynamic_cast<CPH5TreeNode*>(&mCompTreeWrapper);
+}
+
+//TODO document
+std::vector<std::string> CPH5CompType::getChildrenNames() const {
+    std::vector<std::string> ret;
+    if (mChildren.empty()) {
+        return ret;
+    }
+    for (int i = 0; i < numChildren(); ++i) {
+        ret.push_back(mChildren.at(i)->getName());
+    }
+    return ret;
+}
+
+//TODO document
+CPH5CompMemberBase* CPH5CompType::getMemberByName(std::string name) const {
+    if (mChildren.empty()) {
+        return 0;
+    }
+    for (int i = 0; i < numChildren(); ++i) {
+        if (mChildren.at(i)->getName() == name) {
+            return mChildren.at(i);
+        }
+    }
+    return 0;
+}
+
+void CPH5CompType::latchAll()
+{
+    H5::CompType type = getCompType();
+    size_t size = type.getSize();
+    char *buf = new char[size];
+    char *ptr = buf;
+
+    try {
+        if (mpFacility != 0) {
+            mpFacility->read(buf, type);
             for(ChildList::iterator it = mChildren.begin();
                 it != mChildren.end();
                 ++it) {
-                (*it)->latchAndMoveWithSwap(ptr);
+                (*it)->latchAndMove(ptr);
             }
         }
-    }
-    
-    
-    
-    
-    /*!
-     * \brief Calculates the total memory size of all the members belonging to
-     *        this compound type.
-     * \return The total memory size of this compound type.
-     */
-    int getTotalMemorySize() const {
-        int ret = 0;
-        if (mChildren.size() > 0) {
-            for(ChildList::const_iterator it = mChildren.cbegin();
-                it != mChildren.end();
-                ++it) {
-                ret += (*it)->getSize();
-            }
-        }
-        return ret;
-    }
-    
-    
-    /*!
-     * \brief This is the terminal nestCompTypeIR function. See CPH5CompMember
-     *        nestCompTypeIR function. Does not do anything.
-     * \param leaf CompType parameter
-     * \return The parameter, without changing it.
-     */
-    virtual H5::CompType nestCompTypeIR(H5::CompType leaf)
-    {
-        return leaf;
-    }
-    
-    
-    int numChildren() const {
-        return mChildren.size();
-    }
-    
-    
-    CPH5CompMemberBase *getChildAt(int ind) {
-        if (ind >= 0 && ind < mChildren.size()) {
-            return mChildren[ind];
-        }
-    }
-    
-    // CPH5CompType is not and cannot be a true TreeNode subclass.
-    // But, it is needed to be a treenode. Make a treenode subclass
-    // member class inside this and modify the function in
-    // CompMemberArray that returns a reference to an element
-    // (for compound arrays) to go 1 step further and retrieve
-    // the subclass reference to this non-treenode treenode.
-    
-    class CompTreeWrapper : public CPH5TreeNode {
-    public:
-        CompTreeWrapper(CPH5CompType *parent)
-            : mParent(parent)
-        {} // NOOP
-        
-        //TODO document
-        virtual CPH5LeafType getLeafType() const override {
-            // Compound types are never leaves
-            return LT_IS_NOT_LEAF;
-        }
-        
-        //TODO document
-        virtual bool getValIfLeaf(void *p) override {
-            return false;
-        }
-        
-        //TODO document
-        virtual bool canIndexInto() const {
-            return false;
-        }
-        
-        //TODO document
-        virtual CPH5TreeNode *indexInto(int i) override {
-            return 0;
-        }
-        
-        //TODO document
-        virtual int getIndexableSize() const override {
-            return 0;
-        }
-        
-        //TODO document
-        CPH5LeafType getElementType() const {
-            // A compound type object is never an array
-            return LT_IS_NOT_LEAF;
-        }
-        
-        //TODO document
-        int getMemorySizeBelow() const {
-            if (mParent == 0) {
-                return 0;
-            }
-            return mParent->getTotalMemorySize();
-        }
-        
-        //TODO document
-        bool readAllBelow(void *p) {
-            if (mParent == 0) {
-                return false;
-            }
-            mParent->readAll();
-            char *temp = reinterpret_cast<char*>(p);
-            mParent->copyAllAndMove(temp);
-            return true;
-        }
-        
-        //TODO document
-        void *getMemoryLocation() const override {
-            return 0;
-        }
-        
-        //TODO document
-        virtual std::vector<std::string> getChildrenNames() const override {
-            return mParent->getChildrenNames();
-        }
-        
-        //TODO document
-        virtual CPH5TreeNode *getChildByName(std::string name) const override {
-            return dynamic_cast<CPH5TreeNode*>(mParent->getMemberByName(name));
-        }
-        
-        
-    private:
-        CPH5CompType *mParent;
-    };
-    
-    CPH5TreeNode *getTreeNode() const {
-        return dynamic_cast<CPH5TreeNode*>(&mCompTreeWrapper);
-    }
-    
-    //TODO document
-    std::vector<std::string> getChildrenNames() const {
-        std::vector<std::string> ret;
-        if (mChildren.empty()) {
-            return ret;
-        }
-        for (int i = 0; i < numChildren(); ++i) {
-            ret.push_back(mChildren.at(i)->getName());
-        }
-        return ret;
-    }
-    
-    //TODO document
-    CPH5CompMemberBase *getMemberByName(std::string name) const {
-        if (mChildren.empty()) {
-            return 0;
-        }
-        for (int i = 0; i < numChildren(); ++i) {
-            if (mChildren.at(i)->getName() == name) {
-                return mChildren.at(i);
-            }
-        }
-        return 0;
-    }
-    
-    
-protected:
-    
-    
-    /*!
-     * \brief Iterates over all children and reads the entire comptype from
-     *        the target HDF5 file.
-     */
-    void latchAll()
-    {
-        H5::CompType type = getCompType();
-        size_t size = type.getSize();
-        char *buf = new char[size];
-        char *ptr = buf;
-        
-        try {
-            if (mpFacility != 0) {
-                mpFacility->read(buf, type);
-                for(ChildList::iterator it = mChildren.begin();
-                    it != mChildren.end();
-                    ++it) {
-                    (*it)->latchAndMove(ptr);
-                }
-            }
-        } catch (...) {
-            delete[] buf;
-            throw;
-        }
-        
+    } catch (...) {
         delete[] buf;
+        throw;
     }
-    
-    typedef std::vector<CPH5CompMemberBase *> ChildList;
-    ChildList mChildren;
-    ChildList mExternalChildren;
-    
-    mutable CPH5IOFacility *mpFacility;
-    
-    CPH5CompMemberArrayBase *mpArrParent;
-    
-private:
-    
-    CPH5CompType(CPH5CompType &&other); // Disabled move
-    CPH5CompType &operator=(CPH5CompType &&other); // Disabled move-assign
-    
-    mutable CompTreeWrapper mCompTreeWrapper;
-};
+
+    delete[] buf;
+}
+
+
 
 
 /*!
@@ -1171,11 +1273,11 @@ public:
     CPH5CompMember(CPH5CompType *parent,
                    std::string name,
                    H5::DataType type)
-        : CPH5CompMemberBaseThru(parent, name, type)
+        : CPH5CompMemberBaseThru<T, IsDerivedFrom<T, CPH5CompType>::Is>(parent, name, type)
     {
         // Part of a structure
-        if (mpParent != 0)
-            mpParent->registerMember(this);
+        if (this->mpParent != 0)
+            this->mpParent->registerMember(this);
     }
     
     /*!
@@ -1192,11 +1294,11 @@ public:
     CPH5CompMember(CPH5CompType *parent,
                    std::string name,
                    H5::CompType type)
-        : CPH5CompMemberBaseThru(parent, name, type)
+        : CPH5CompMemberBaseThru<T, IsDerivedFrom<T, CPH5CompType>::Is>(parent, name, type)
     {
         // Part of a structure
-        if (mpParent != 0)
-            mpParent->registerMember(this);
+        if (this->mpParent != 0)
+            this->mpParent->registerMember(this);
     }
     
     /*!
@@ -1211,11 +1313,11 @@ public:
      */
     CPH5CompMember(CPH5CompType *parent,
                    std::string name)
-        : CPH5CompMemberBaseThru(parent, name)
+        : CPH5CompMemberBaseThru<T, IsDerivedFrom<T, CPH5CompType>::Is>(parent, name)
     {
         // Part of a structure
-        if (mpParent != 0)
-            mpParent->registerMember(this);
+        if (this->mpParent != 0)
+            this->mpParent->registerMember(this);
     }
     
     
@@ -1225,20 +1327,20 @@ public:
      *        register with parent.
      */
     CPH5CompMember()
-        : CPH5CompMemberBaseThru()
-    {} // NOOP
+        : CPH5CompMemberBaseThru<T, IsDerivedFrom<T, CPH5CompType>::Is>()
+    { this->mpParent(0);} // NOOP
     
     virtual ~CPH5CompMember() {}
     
     /*!
      * \brief operator T Used to read value from target HDF5 file and return
      *        for storage into a T object.
-     * 
+     *
      * NOTE Using this operator will result in a compiler error if T is a
      * compound type. Future fix.
      */
     operator T() const {
-        return CPH5CompMemberBaseThru::get();
+        return CPH5CompMemberBaseThru<T, IsDerivedFrom<T, CPH5CompType>::Is>::get();
     }
     
     
@@ -1248,7 +1350,7 @@ public:
      * \param rhs Value to write to target HDF5 file.
      */
     void operator=(const T &rhs) {
-        CPH5CompMemberBaseThru::operator=(rhs);
+        CPH5CompMemberBaseThru<T, IsDerivedFrom<T, CPH5CompType>::Is>::operator=(rhs);
     }
     
     
@@ -1261,9 +1363,9 @@ public:
      */
     CPH5CompMember<T> &operator=(const CPH5CompMember<T> &other) {
         //mpParent = 0;
-        mT = other.mT;
-        mName = other.mName;
-        mType = other.mType;
+        this->mT = other.mT;
+        this->mName = other.mName;
+        this->mType = other.mType;
         return *this;
     }
     
@@ -1275,9 +1377,9 @@ public:
      */
     CPH5CompMember(const CPH5CompMember<T> &other) {
         //mpParent = 0;
-        mT = other.mT;
-        mName = other.mName;
-        mType = other.mType;
+        this->mT = other.mT;
+        this->mName = other.mName;
+        this->mType = other.mType;
     }
     
     // TreeNode functions not required here because they are present in all
@@ -1406,7 +1508,7 @@ public:
      * 
      *        Should only be used with non-compound types.
      */
-    template<class T>
+    template<class H>
     class ElementProxy : public CPH5TreeNode
     {
     public:
@@ -1415,43 +1517,48 @@ public:
          * \param p CompMemberArray that holds data.
          * \param index Index that this element is in reference to.
          */
-        ElementProxy(CPH5CompMemberArrayCommon<T, inh> *p,
-                    int index)
+        ElementProxy(CPH5CompMemberArrayCommon<H, inh> *p,
+                     int index)
             : mP(p),
               ind(index)
         {} // NOOP
         
+        /*!
+         * \brief Default constructor, noop other than initializing members.
+         * \param p CompMemberArray that holds data.
+         * \param index Index that this element is in reference to.
+         */
         ElementProxy()
             : mP(0),
               ind(-1)
         {} // NOOP
-        
+
         /*!
          * \brief operator = Overloaded assignment operator. Calls the write
          *        function of the CompMemberArray with the given index.
          * \param other Value to write.
          */
-        void operator=(const T other) {
+        void operator=(const H other) {
             mP->write(other, ind);
         }
         
         /*!
-         * \brief operator T Overloaded typecast operator. Calls the read
+         * \brief operator H Overloaded typecast operator. Calls the read
          *        function of the CompMemberArray with the given index, and
          *        returns the value read.
          */
-        operator T() {
+        operator H() {
             return mP->read(ind);
         }
         
         //TODO document
         virtual CPH5LeafType getLeafType() const override {
-            return static_cast<CPH5LeafType>(IsLeaf<T>::Get);
+            return static_cast<CPH5LeafType>(IsLeaf<H>::Get);
         }
         
         //TODO document
         virtual bool getValIfLeaf(void *p) override {
-            *reinterpret_cast<T*>(p) = mP->read(ind);
+            *reinterpret_cast<H*>(p) = mP->read(ind);
             return true;
         }
         
@@ -1478,12 +1585,12 @@ public:
         
         //TODO document
         virtual int getMemorySizeBelow() const override {
-            return sizeof(T);
+            return sizeof(H);
         }
         
         //TODO document
         virtual bool readAllBelow(void *p) override {
-            mP->read((T*)p);
+            mP->read((H*)p);
             return true;
         }
         
@@ -1504,7 +1611,7 @@ public:
         
         
     private:
-        CPH5CompMemberArrayCommon<T, inh> *mP;
+        CPH5CompMemberArrayCommon<H, inh> *mP;
         int ind;
     };
     
@@ -1535,7 +1642,7 @@ public:
         mNElements = nElements;
         
         mBaseType = type;
-        hsize_t d[] = {nElements};
+        hsize_t d[] = {static_cast<hsize_t>(nElements)};
         mArrType = H5::ArrayType(mBaseType, 1, d);
         
         pMT = new T[mNElements];
@@ -1795,10 +1902,10 @@ public:
     
     
     //TODO document
-    virtual CPH5LeafType getLeafType() const override {
+    virtual CPH5TreeNode::CPH5LeafType getLeafType() const override {
         // Assume the array size is not 0 because that would be stupid.
         // Arrays are never leaves.
-        return LT_IS_NOT_LEAF;
+        return CPH5TreeNode::LT_IS_NOT_LEAF;
     }
     
     //TODO document
@@ -1827,8 +1934,8 @@ public:
     }
     
     //TODO document
-    virtual CPH5LeafType getElementType() const override {
-        return static_cast<CPH5LeafType>(IsLeaf<T>::Get);
+    virtual CPH5TreeNode::CPH5LeafType getElementType() const override {
+        return static_cast<CPH5TreeNode::CPH5LeafType>(CPH5TreeNode::IsLeaf<T>::Get);
     }
     
     //TODO document
@@ -1947,7 +2054,7 @@ public:
             mpParent->registerMember(this);
         
         mBaseType = type;
-        hsize_t d[] = {nElements};
+        hsize_t d[] = {static_cast<hsize_t>(nElements)};
         mArrType = H5::ArrayType(mBaseType, 1, d);
         
         mNElements = nElements;
@@ -2234,9 +2341,9 @@ public:
     
     
     //TODO document
-    virtual CPH5LeafType getLeafType() const override {
+    virtual CPH5TreeNode::CPH5LeafType getLeafType() const override {
         // Arrays are never leaves.
-        return LT_IS_NOT_LEAF;
+        return CPH5TreeNode::LT_IS_NOT_LEAF;
     }
     
     //TODO document
@@ -2261,9 +2368,9 @@ public:
     }
     
     //TODO document
-    CPH5LeafType getElementType() const {
+    CPH5TreeNode::CPH5LeafType getElementType() const {
         // This is an array of compound types.
-        return LT_IS_NOT_LEAF;
+        return CPH5TreeNode::LT_IS_NOT_LEAF;
     }
     
     //TODO document
@@ -2345,7 +2452,7 @@ public:
     CPH5CompMemberArray(CPH5CompType *parent,
                         std::string name,
                         H5::DataType type)
-        : CPH5CompMemberArrayCommon(parent, name, type, nElements)
+        : CPH5CompMemberArrayCommon<T, IsDerivedFrom<T, CPH5CompType>::Is>(parent, name, type, nElements)
     {} // NOOP
     
     
@@ -2357,7 +2464,7 @@ public:
      */
     CPH5CompMemberArray(CPH5CompType *parent,
                         std::string name)
-        : CPH5CompMemberArrayCommon(parent, name, nElements)
+        : CPH5CompMemberArrayCommon<T, IsDerivedFrom<T, CPH5CompType>::Is>(parent, name, nElements)
     {} // NOOP
     
     
