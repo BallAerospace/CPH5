@@ -460,7 +460,7 @@ public:
      * \return int for size.
      */
     int getSize() const {
-        return getTotalMemorySize();
+        return T::getTotalMemorySize();
     }
     
     
@@ -473,7 +473,7 @@ public:
      * \param ptr Buffer to read data from and then increment.
      */
     void latchAndMove(char *&ptr) {
-        latchAllAndMove(ptr);
+        T::latchAllAndMove(ptr);
     }
     
     
@@ -487,7 +487,7 @@ public:
      *        unchanged, only internal value is endian-swapped.
      */
     void latchAndMoveWithSwap(char *&ptr) {
-        latchAllAndMoveWithSwap(ptr);
+        T::latchAllAndMoveWithSwap(ptr);
     }
 
     
@@ -506,7 +506,7 @@ public:
      * \param ptr Buffer to write data into and then increment.
      */
     void copyAndMove(char *&ptr) const {
-        copyAllAndMove(ptr);
+        T::copyAllAndMove(ptr);
     }
     
     
@@ -968,6 +968,7 @@ public:
         if (ind >= 0 && ind < mChildren.size()) {
             return mChildren[ind];
         }
+		return nullptr;
     }
     
     // CPH5CompType is not and cannot be a true TreeNode subclass.
@@ -1154,7 +1155,7 @@ template<class T>
 class CPH5CompMember
         : public CPH5CompMemberBaseThru<T, IsDerivedFrom<T, CPH5CompType>::Is>
 {
-    
+    typedef CPH5CompMemberBaseThru<T, IsDerivedFrom<T, CPH5CompType>::Is> CPH5CompMemberBaseThruSpec;
 public:
     
     /*!
@@ -1171,11 +1172,11 @@ public:
     CPH5CompMember(CPH5CompType *parent,
                    std::string name,
                    H5::DataType type)
-        : CPH5CompMemberBaseThru(parent, name, type)
+        : CPH5CompMemberBaseThruSpec(parent, name, type)
     {
         // Part of a structure
-        if (mpParent != 0)
-            mpParent->registerMember(this);
+        if (CPH5CompMemberBaseThruSpec::mpParent != 0)
+            CPH5CompMemberBaseThruSpec::mpParent->registerMember(this);
     }
     
     /*!
@@ -1192,11 +1193,11 @@ public:
     CPH5CompMember(CPH5CompType *parent,
                    std::string name,
                    H5::CompType type)
-        : CPH5CompMemberBaseThru(parent, name, type)
+        : CPH5CompMemberBaseThruSpec(parent, name, type)
     {
         // Part of a structure
-        if (mpParent != 0)
-            mpParent->registerMember(this);
+        if (CPH5CompMemberBaseThruSpec::mpParent != 0)
+            CPH5CompMemberBaseThruSpec::mpParent->registerMember(this);
     }
     
     /*!
@@ -1211,11 +1212,11 @@ public:
      */
     CPH5CompMember(CPH5CompType *parent,
                    std::string name)
-        : CPH5CompMemberBaseThru(parent, name)
+        : CPH5CompMemberBaseThruSpec(parent, name)
     {
         // Part of a structure
-        if (mpParent != 0)
-            mpParent->registerMember(this);
+        if (CPH5CompMemberBaseThruSpec::mpParent != 0)
+            CPH5CompMemberBaseThruSpec::mpParent->registerMember(this);
     }
     
     
@@ -1225,7 +1226,7 @@ public:
      *        register with parent.
      */
     CPH5CompMember()
-        : CPH5CompMemberBaseThru()
+        : CPH5CompMemberBaseThruSpec()
     {} // NOOP
     
     virtual ~CPH5CompMember() {}
@@ -1238,7 +1239,7 @@ public:
      * compound type. Future fix.
      */
     operator T() const {
-        return CPH5CompMemberBaseThru::get();
+        return CPH5CompMemberBaseThruSpec::get();
     }
     
     
@@ -1248,7 +1249,7 @@ public:
      * \param rhs Value to write to target HDF5 file.
      */
     void operator=(const T &rhs) {
-        CPH5CompMemberBaseThru::operator=(rhs);
+        CPH5CompMemberBaseThruSpec::operator=(rhs);
     }
     
     
@@ -1260,7 +1261,7 @@ public:
      * \return 
      */
     CPH5CompMember<T> &operator=(const CPH5CompMember<T> &other) {
-        //mpParent = 0;
+        //CPH5CompMemberBaseThruSpec::mpParent = 0;
         mT = other.mT;
         mName = other.mName;
         mType = other.mType;
@@ -1274,7 +1275,7 @@ public:
      * \param other CPH5CompMember to copy from.
      */
     CPH5CompMember(const CPH5CompMember<T> &other) {
-        //mpParent = 0;
+        //CPH5CompMemberBaseThruSpec::mpParent = 0;
         mT = other.mT;
         mName = other.mName;
         mType = other.mType;
@@ -1795,10 +1796,10 @@ public:
     
     
     //TODO document
-    virtual CPH5LeafType getLeafType() const override {
+    virtual CPH5TreeNode::CPH5LeafType getLeafType() const override {
         // Assume the array size is not 0 because that would be stupid.
         // Arrays are never leaves.
-        return LT_IS_NOT_LEAF;
+        return CPH5TreeNode::LT_IS_NOT_LEAF;
     }
     
     //TODO document
@@ -1827,8 +1828,8 @@ public:
     }
     
     //TODO document
-    virtual CPH5LeafType getElementType() const override {
-        return static_cast<CPH5LeafType>(IsLeaf<T>::Get);
+    virtual CPH5TreeNode::CPH5LeafType getElementType() const override {
+        return static_cast<CPH5TreeNode::CPH5LeafType>(CPH5TreeNode::IsLeaf<T>::Get);
     }
     
     //TODO document
@@ -2234,9 +2235,9 @@ public:
     
     
     //TODO document
-    virtual CPH5LeafType getLeafType() const override {
+    virtual CPH5TreeNode::CPH5LeafType getLeafType() const override {
         // Arrays are never leaves.
-        return LT_IS_NOT_LEAF;
+        return CPH5TreeNode::LT_IS_NOT_LEAF;
     }
     
     //TODO document
@@ -2261,9 +2262,9 @@ public:
     }
     
     //TODO document
-    CPH5LeafType getElementType() const {
+    CPH5TreeNode::CPH5LeafType getElementType() const {
         // This is an array of compound types.
-        return LT_IS_NOT_LEAF;
+        return CPH5TreeNode::LT_IS_NOT_LEAF;
     }
     
     //TODO document

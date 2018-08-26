@@ -50,10 +50,11 @@
  * for DatasetBase: non-inherited order 1+, non-inherited order 0,
  * inherited order 1+, inherited order 0.
  */
-template<class T, const int nDims, const int>
+template<class T, const int nDims, const int I>
 class CPH5DatasetBase
 {
     // NON-INHERITED SPECIALIZATION, order 1+
+	typedef CPH5DatasetBase<T, nDims, I> CPH5DatasetBaseSpec;
 public:
     
     /*!
@@ -136,9 +137,9 @@ protected:
 private:
     
     // Disable the move and copy constructors
-    CPH5DatasetBase(CPH5DatasetBase &&other);
-    CPH5DatasetBase &operator=(CPH5DatasetBase &&other);
-    CPH5DatasetBase(CPH5DatasetBase &other);
+    CPH5DatasetBase(CPH5DatasetBaseSpec &&other);
+    CPH5DatasetBase &operator=(CPH5DatasetBaseSpec &&other);
+    CPH5DatasetBase(CPH5DatasetBaseSpec &other);
     
     CPH5IOFacility *mpIOFacility;
 };
@@ -486,7 +487,7 @@ public:
      */
     CPH5DatasetBase(CPH5IOFacility *pioFacility)
     {
-        setIOFacility(pioFacility);
+        T::setIOFacility(pioFacility);
         mpIOFacility = pioFacility;
         mType = T().getCompType();
         mPrevFirstOrderIndex = -1;
@@ -504,7 +505,7 @@ public:
     CPH5DatasetBase(CPH5IOFacility *pioFacility,
                     H5::CompType type)
     {
-        setIOFacility(pioFacility);
+        T::setIOFacility(pioFacility);
         mpIOFacility = pioFacility;
         mType = type;
         mPrevFirstOrderIndex = -1;
@@ -517,12 +518,12 @@ public:
      */
     // Future enhancement: figure out how to do this without making two copies.
     void read(T *item) {
-        readAll();
+        T::readAll();
         
-        char *pBuf = new char[getTotalMemorySize()];
+        char *pBuf = new char[T::getTotalMemorySize()];
         char *pBufr = pBuf;
         try {
-            copyAllAndMove(pBufr);
+            T::copyAllAndMove(pBufr);
             pBufr = pBuf;
             item->latchAllAndMove(pBufr);
         } catch (...) {
@@ -562,7 +563,7 @@ public:
         }
 
         delete[] pBuf;
-        writeAll();
+        T::writeAll();
     }
     
     
@@ -575,9 +576,9 @@ public:
      *        data.
      */
     void readRaw(void *buf) {
-        readAll();
+        T::readAll();
         char *p = reinterpret_cast<char*>(buf);
-        copyAllAndMove(p);
+        T::copyAllAndMove(p);
     }
     
     
@@ -707,7 +708,7 @@ class CPH5Dataset :
         public CPH5DatasetBase<T, nDims, IsDerivedFrom<T, CPH5CompType>::Is>,
         public CPH5DatasetIdBase
 {
-    
+    typedef CPH5DatasetBase<T, nDims, IsDerivedFrom<T, CPH5CompType>::Is> CPH5DatasetBaseSpec;
 public:
     
     /*!
@@ -727,7 +728,7 @@ public:
         : CPH5GroupMember(name),
           mpGroupParent(parent),
           mpDimParent(0),
-          CPH5DatasetBase(mpIOFacility = new CPH5IOFacility,
+          CPH5DatasetBaseSpec(mpIOFacility = new CPH5IOFacility,
                           type),
           mNextDim(this, type),
           mpDataSet(0),
@@ -757,7 +758,7 @@ public:
         : CPH5GroupMember(name),
           mpGroupParent(parent),
           mpDimParent(0),
-          CPH5DatasetBase(mpIOFacility = new CPH5IOFacility,
+          CPH5DatasetBaseSpec(mpIOFacility = new CPH5IOFacility,
                           type),
           mNextDim(this, type),
           mpDataSet(0),
@@ -787,7 +788,7 @@ public:
         : CPH5GroupMember(name),
           mpGroupParent(parent),
           mpDimParent(0),
-          CPH5DatasetBase(mpIOFacility = new CPH5IOFacility),
+          CPH5DatasetBaseSpec(mpIOFacility = new CPH5IOFacility),
           mNextDim(this),
           mpDataSet(0),
           mDimsSet(false),
@@ -832,11 +833,11 @@ public:
             H5::DataSpace space(nDims, mDims, mMaxDims);
             if (mChunksSet) {
                 mpDataSet = mpGroupParent->createDataSet(mName,
-                                                         mType,
+                                                         CPH5DatasetBaseSpec::mType,
                                                          space,
                                                          mPropList);
             } else {
-                mpDataSet = mpGroupParent->createDataSet(mName, mType, space);
+                mpDataSet = mpGroupParent->createDataSet(mName, CPH5DatasetBaseSpec::mType, space);
             }
         } else {
             mpDataSet = mpGroupParent->openDataSet(mName);
@@ -890,7 +891,7 @@ public:
     CPH5Dataset<T, nDims-1> &operator[](int ind) {
         if (mpGroupParent != 0) {
             mpIOFacility->init(mpDataSet,
-                               mType,
+                               CPH5DatasetBaseSpec::mType,
                                nDims,
                                mDims);
         }
@@ -1007,11 +1008,11 @@ public:
         if (mpGroupParent != 0) {
             // Root level
             mpIOFacility->init(mpDataSet,
-                               mType,
+                               CPH5DatasetBaseSpec::mType,
                                nDims,
                                mDims);
         }
-        CPH5DatasetBase::write(src);
+        CPH5DatasetBaseSpec::write(src);
     }
     
     
@@ -1034,11 +1035,11 @@ public:
         if (mpGroupParent != 0) {
             // Root level
             mpIOFacility->init(mpDataSet,
-                               mType,
+                               CPH5DatasetBaseSpec::mType,
                                nDims,
                                mDims);
         }
-        CPH5DatasetBase::writeRaw(src);
+        CPH5DatasetBaseSpec::writeRaw(src);
     }
     
     
@@ -1054,7 +1055,7 @@ public:
         if (mpGroupParent != 0) {
             // Root level
             mpIOFacility->init(mpDataSet,
-                               mType,
+                               CPH5DatasetBaseSpec::mType,
                                nDims,
                                mDims);
         }
@@ -1077,11 +1078,11 @@ public:
         if (mpGroupParent != 0) {
             // Root level
             mpIOFacility->init(mpDataSet,
-                               mType,
+                               CPH5DatasetBaseSpec::mType,
                                nDims,
                                mDims);
         }
-        CPH5DatasetBase::read(dst);
+        CPH5DatasetBaseSpec::read(dst);
     }
     
     
@@ -1098,11 +1099,11 @@ public:
         if (mpGroupParent != 0) {
             // Root level
             mpIOFacility->init(mpDataSet,
-                               mType,
+                               CPH5DatasetBaseSpec::mType,
                                nDims,
                                mDims);
         }
-        CPH5DatasetBase::readRaw(dst);
+        CPH5DatasetBaseSpec::readRaw(dst);
     }
     
     
@@ -1312,7 +1313,7 @@ public:
         }
         
         // Use mType.getSize instead of sizeof(T) in case T is a compound type.
-        int size = rhs.getTotalNumElements()*mType.getSize();
+        int size = rhs.getTotalNumElements()*CPH5DatasetBaseSpec::mType.getSize();
         char *buf = new char[size];
         try {
             rhs.readRaw(buf);
@@ -1467,7 +1468,7 @@ private:
           mDimsSet(false),
           mpIOFacility(parent->getIOFacility()),
           mChunksSet(false),
-          CPH5DatasetBase(parent->getIOFacility())
+          CPH5DatasetBaseSpec(parent->getIOFacility())
     {
         memset(mDims, 0, nDims*4);
         memset(mMaxDims, 0, nDims*4);
@@ -1498,7 +1499,7 @@ private:
           mDimsSet(false),
           mpIOFacility(parent->getIOFacility()),
           mChunksSet(false),
-          CPH5DatasetBase(parent->getIOFacility(), type)
+          CPH5DatasetBaseSpec(parent->getIOFacility(), type)
     {
         // Should only be used if a dataset of non-compound types
         memset(mDims, 0, nDims*4);
@@ -1529,7 +1530,7 @@ private:
           mDimsSet(false),
           mpIOFacility(parent->getIOFacility()),
           mChunksSet(false),
-          CPH5DatasetBase(parent->getIOFacility(), type)
+          CPH5DatasetBaseSpec(parent->getIOFacility(), type)
     {
         // Should only be used if a dataset of non-compound types
         memset(mDims, 0, nDims*4);
@@ -1684,6 +1685,7 @@ class CPH5Dataset<T, 0> :
         public CPH5AttributeHolder,
         public CPH5DatasetIdBase
 {
+	typedef CPH5DatasetBase<T, 0, IsDerivedFrom<T, CPH5CompType>::Is> CPH5DatasetBaseSpec;
 public:
     
     
@@ -1704,7 +1706,7 @@ public:
         : CPH5GroupMember(name),
           mpGroupParent(parent),
           mpDimParent(0),
-          CPH5DatasetBase(mpIOFacility = new CPH5IOFacility, type),
+          CPH5DatasetBaseSpec(mpIOFacility = new CPH5IOFacility, type),
           mpDataSet(0)
     {
         parent->registerChild(this);
@@ -1726,7 +1728,7 @@ public:
         : CPH5GroupMember(name),
           mpGroupParent(parent),
           mpDimParent(0),
-          CPH5DatasetBase(mpIOFacility = new CPH5IOFacility, type),
+          CPH5DatasetBaseSpec(mpIOFacility = new CPH5IOFacility, type),
           mpDataSet(0)
     {
         parent->registerChild(this);
@@ -1749,7 +1751,7 @@ public:
         : CPH5GroupMember(name),
           mpGroupParent(parent),
           mpDimParent(0),
-          CPH5DatasetBase(mpIOFacility = new CPH5IOFacility),
+          CPH5DatasetBaseSpec(mpIOFacility = new CPH5IOFacility),
           mpDataSet(0)
     {
         parent->registerChild(this);
@@ -1783,7 +1785,7 @@ public:
             return;
         if (create) {
             H5::DataSpace space(0, 0);
-                mpDataSet = mpGroupParent->createDataSet(mName, mType, space);
+                mpDataSet = mpGroupParent->createDataSet(mName, CPH5DatasetBaseSpec::mType, space);
         } else {
             mpDataSet = mpGroupParent->openDataSet(mName);
             H5::DataSpace filespace(mpDataSet->getSpace());
@@ -1791,7 +1793,7 @@ public:
                 //Future: proper error. For now just return.
             }
         }
-        mpIOFacility->init(mpDataSet, mType, 0, 0);
+        mpIOFacility->init(mpDataSet, CPH5DatasetBaseSpec::mType, 0, 0);
         if (mChildren.size() > 0) {
             for(ChildList::iterator it = mChildren.begin();
                 it != mChildren.end();
@@ -1966,12 +1968,12 @@ public:
     
     //TODO document
     CPH5LeafType getLeafType() const override {
-        return CPH5DatasetBase::getLeafType();
+        return CPH5DatasetBaseSpec::getLeafType();
     }
     
     //TODO document
     bool getValIfLeaf(void *p) override {
-        return CPH5DatasetBase::getValIfLeaf(p);
+        return CPH5DatasetBaseSpec::getValIfLeaf(p);
     }
     
     //TODO document
@@ -1998,12 +2000,12 @@ public:
     
     //TODO document
     int getMemorySizeBelow() const {
-        return getTotalMemorySize();
+        return CPH5DatasetBaseSpec::getTotalMemorySize();
     }
     
     //TODO document
     bool readAllBelow(void *p) {
-        readRaw(p);
+        CPH5DatasetBaseSpec::readRaw(p);
         return true;
     }
     
@@ -2014,12 +2016,12 @@ public:
     
     //TODO document
     std::vector<std::string> getChildrenNames() const override {
-        return CPH5DatasetBase::getChildrenNames();
+        return CPH5DatasetBaseSpec::getChildrenNames();
     }
     
     //TODO document
     CPH5TreeNode *getChildByName(std::string name) const override {
-        return CPH5DatasetBase::getChildByName(name);
+        return CPH5DatasetBaseSpec::getChildByName(name);
     }
     
     CPH5Dataset<T, 0> *getScalarRef() {
@@ -2047,7 +2049,7 @@ private:
           mpGroupParent(0),
           mpDataSet(0),
           mpIOFacility(parent->getIOFacility()),
-          CPH5DatasetBase(parent->getIOFacility())
+          CPH5DatasetBaseSpec(parent->getIOFacility())
     {
         mType = parent->mType;
     }
@@ -2067,7 +2069,7 @@ private:
           mpGroupParent(0),
           mpDataSet(0),
           mpIOFacility(parent->getIOFacility()),
-          CPH5DatasetBase(parent->getIOFacility(), type)
+          CPH5DatasetBaseSpec(parent->getIOFacility(), type)
     {} // NOOP
     
     /*!
@@ -2085,7 +2087,7 @@ private:
           mpGroupParent(0),
           mpDataSet(0),
           mpIOFacility(parent->getIOFacility()),
-          CPH5DatasetBase(parent->getIOFacility(), type)
+          CPH5DatasetBaseSpec(parent->getIOFacility(), type)
     {} // NOOP
     
     
