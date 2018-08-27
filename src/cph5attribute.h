@@ -179,6 +179,7 @@ template<typename T>
 class CPH5Attribute : public CPH5AttributeInterface,
         public CPH5AttributeBase<T, IsDerivedFrom<T, CPH5CompType>::Is>
 {
+	typedef CPH5AttributeBase<T, IsDerivedFrom<T, CPH5CompType>::Is> CPH5AttributeBaseSpec;
 public:
     
     /*!
@@ -195,7 +196,7 @@ public:
                   std::string name,
                   H5::DataType dataType)
         : CPH5AttributeInterface(name),
-          CPH5AttributeBase(dataType),
+          CPH5AttributeBaseSpec(dataType),
           mpParent(parent)
     {
         if (mpParent)
@@ -216,7 +217,7 @@ public:
     CPH5Attribute(CPH5AttributeHolder *parent,
                   std::string name)
         : CPH5AttributeInterface(name),
-          CPH5AttributeBase(),
+          CPH5AttributeBaseSpec(),
           mpParent(parent)
     {
         if (mpParent)
@@ -235,11 +236,11 @@ public:
     void openR(bool create)
     {
         if (create)
-            mpAttribute = mpParent->createAttribute(mName,
-                                                    mDataType,
-                                                    mDataSpace);
+            CPH5AttributeBaseSpec::mpAttribute = mpParent->createAttribute(mName,
+                                                                           CPH5AttributeBaseSpec::mDataType,
+                                                                           mDataSpace);
         else
-            mpAttribute = mpParent->openAttribute(mName);
+            CPH5AttributeBaseSpec::mpAttribute = mpParent->openAttribute(mName);
     }
     
     
@@ -249,10 +250,10 @@ public:
      */
     void closeR()
     {
-        if (mpAttribute != 0) {
-            mpAttribute->close();
-            delete mpAttribute;
-            mpAttribute = 0;
+        if (CPH5AttributeBaseSpec::mpAttribute != 0) {
+            CPH5AttributeBaseSpec::mpAttribute->close();
+            delete CPH5AttributeBaseSpec::mpAttribute;
+            CPH5AttributeBaseSpec::mpAttribute = 0;
         }
     }
     
@@ -262,7 +263,7 @@ public:
      * \param other T object reference to assign from.
      */
     void operator=(const T &other) {
-        CPH5AttributeBase::operator=(other);
+        CPH5AttributeBaseSpec::operator=(other);
     }
     
     /*!

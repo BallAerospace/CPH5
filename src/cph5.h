@@ -5,7 +5,13 @@
 // the terms found in the accompanying LICENSE.txt file.
 ////////////////////////////////////////////////////////////////////////////////
 
+// STD headers needed by the library
+#include <cstring>
+
+// HDF5
 #include "H5Cpp.h"
+
+// This library
 #include "cph5utilities.h"
 #include "cph5group.h"
 #include "cph5dataset.h"

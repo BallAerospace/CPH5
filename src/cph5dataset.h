@@ -385,8 +385,8 @@ public:
             int nElements = mpIOFacility->getNumLowerElements();
             char *pBuf = new char[items->getTotalMemorySize()*nElements];
             char *pBufr = pBuf;
-            for (int i = 0; i < nElements; ++i) {
-                items[i].copyAllAndMove(pBufr);
+            for (int c = 0; c < nElements; ++c) {
+                items[c].copyAllAndMove(pBufr);
             }
             try {
                 mpIOFacility->write(pBuf);
@@ -416,8 +416,8 @@ public:
                 throw;
             }
             char *pBufr = pBuf;
-            for (int i = 0; i < nElements; ++i) {
-                items[i].latchAllAndMove(pBufr);
+            for (int c = 0; c < nElements; ++c) {
+                items[c].latchAllAndMove(pBufr);
             }
             delete[] pBuf;
             
@@ -551,12 +551,12 @@ public:
         //char *p = static_cast<char*>(buf);
         //latchAllAndMove(p);
         
-        char *pBuf = new char[getTotalMemorySize()];
+        char *pBuf = new char[T::getTotalMemorySize()];
         char *pBufr = pBuf;
         try {
             item->copyAllAndMove(pBufr);
             pBufr = pBuf;
-            latchAllAndMove(pBufr);
+            T::latchAllAndMove(pBufr);
         } catch (...) {
             delete[] pBuf;
             throw;
@@ -593,8 +593,8 @@ public:
     void writeRaw(const void *src) {
         void *nsrc = const_cast<void*>(src);
         char *p = reinterpret_cast<char*>(nsrc);
-        latchAllAndMove(p);
-        writeAll();
+        T::latchAllAndMove(p);
+        T::writeAll();
     }
     
     
@@ -1830,7 +1830,7 @@ public:
      * \param rhs Value to write.
      */
     void operator=(T &rhs) {
-        CPH5DatasetBase::operator=(rhs);
+        CPH5DatasetBaseSpec::operator=(rhs);
     }
     
     /*!
@@ -1839,7 +1839,7 @@ public:
      * \param rhs Value to write.
      */
     void operator=(T &&rhs) {
-        CPH5DatasetBase::operator=(rhs);
+        CPH5DatasetBaseSpec::operator=(rhs);
     }
     
     /*!
@@ -2051,7 +2051,7 @@ private:
           mpIOFacility(parent->getIOFacility()),
           CPH5DatasetBaseSpec(parent->getIOFacility())
     {
-        mType = parent->mType;
+        CPH5DatasetBaseSpec::mType = parent->mType;
     }
     
     
@@ -2121,6 +2121,7 @@ template<class T>
 class CPH5Dataset<T, CPH_5_MAX_DIMS+1>
         : public CPH5DatasetBase<T, CPH_5_MAX_DIMS+1, IS_NOT_DERIVED>
 {
+	typedef CPH5DatasetBase<T, CPH_5_MAX_DIMS+1, IS_NOT_DERIVED> CPH5DatasetBaseSpec;
 public:
     
     H5::DataSet *getDataSet() const {
@@ -2158,7 +2159,7 @@ public:
     
 private:
     CPH5Dataset()
-        : CPH5DatasetBase(0)
+        : CPH5DatasetBaseSpec(0)
     {} // NOOP
     CPH5Dataset(const CPH5Dataset &other);
 };

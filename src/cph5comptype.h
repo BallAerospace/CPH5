@@ -152,17 +152,7 @@ public:
      *        is maintained by this object.
      * \return Reference to value that was just read from the arget HDF5 file.
      */
-    const T &get() const {
-        if (mpParent != 0) {
-            CPH5IOFacility *pIO = mpParent->getIOFacility();
-            if (pIO != 0) {
-                H5::CompType h5CompType(sizeof(T));
-                h5CompType.insertMember(mName, 0, mType);
-                pIO->read(&mT, mpParent->nestCompTypeIR(h5CompType));
-            }
-        }
-        return mT;
-    }
+    const T &get() const;
     
     
     /*!
@@ -239,20 +229,7 @@ public:
      *        and to the target HDF5 file simultaneously. Overloaded operator.
      * \param other Value to write.
      */
-    void operator=(const T &other) {
-        mT = other;
-        if (mpParent != 0) {
-            CPH5IOFacility *pIO = mpParent->getIOFacility();
-            if (pIO != 0) {
-                H5::CompType h5CompType(sizeof(T));
-                h5CompType.insertMember(mName, 0, mType);
-                pIO->write(&mT, mpParent->nestCompTypeIR(h5CompType));
-                //pIO->write(&mT, h5CompType);
-            } else if (mpArrParent != 0) {
-                mpArrParent->signalChange();
-            }
-        }
-    }
+    void operator=(const T &other);
     
     
     
@@ -355,7 +332,6 @@ protected:
 };
 
 
-
 /*!
  * \brief The CPH5CompMemberBaseThru<T, _Tp2> class is similar to the other non
  *        specialized version of CPH5CompMemberBaseThru except this
@@ -423,13 +399,7 @@ public:
      *        and CPH5CompType expects this to exist.
      * \return Pointer to CPH5IOFacility object, or 0 if error.
      */
-    CPH5IOFacility *getIOFacility() const
-    {
-        if (mpParent != 0) {
-            return mpParent->getIOFacility();
-        }
-        return 0;
-    }
+    CPH5IOFacility *getIOFacility() const;
     
     
     /*!
@@ -519,16 +489,7 @@ public:
      * \return A fully nested H5::CompType object with only the requested
      *         member present.
      */
-    H5::CompType nestCompTypeIR(H5::CompType leaf)
-    {
-        H5::CompType ret(leaf.getSize());
-        ret.insertMember(mName, 0, leaf);
-        if (mpParent != 0) {
-            return mpParent->nestCompTypeIR(ret);
-        } else {
-            return ret;
-        }
-    }
+    H5::CompType nestCompTypeIR(H5::CompType leaf);
     
     
     /*!
@@ -560,9 +521,7 @@ public:
      *        need to be executed at the array level.
      * \param pArrParent Pointer to the inverse-recursive parent array object.
      */
-    void setArrayParent(CPH5CompMemberArrayBase *pArrParent) {
-        CPH5CompType::setArrayParent(pArrParent);
-    }
+    void setArrayParent(CPH5CompMemberArrayBase *pArrParent);
     
     //TODO document
     virtual CPH5LeafType getLeafType() const override {
@@ -1262,9 +1221,9 @@ public:
      */
     CPH5CompMember<T> &operator=(const CPH5CompMember<T> &other) {
         //CPH5CompMemberBaseThruSpec::mpParent = 0;
-        mT = other.mT;
-        mName = other.mName;
-        mType = other.mType;
+        CPH5CompMemberBaseThruSpec::mT = other.mT;
+        CPH5CompMemberBaseThruSpec::mName = other.mName;
+        CPH5CompMemberBaseThruSpec::mType = other.mType;
         return *this;
     }
     
@@ -1276,9 +1235,9 @@ public:
      */
     CPH5CompMember(const CPH5CompMember<T> &other) {
         //CPH5CompMemberBaseThruSpec::mpParent = 0;
-        mT = other.mT;
-        mName = other.mName;
-        mType = other.mType;
+        CPH5CompMemberBaseThruSpec::mT = other.mT;
+        CPH5CompMemberBaseThruSpec::mName = other.mName;
+        CPH5CompMemberBaseThruSpec::mType = other.mType;
     }
     
     // TreeNode functions not required here because they are present in all
@@ -1407,7 +1366,7 @@ public:
      * 
      *        Should only be used with non-compound types.
      */
-    template<class T>
+    template<class E>
     class ElementProxy : public CPH5TreeNode
     {
     public:
@@ -1416,7 +1375,7 @@ public:
          * \param p CompMemberArray that holds data.
          * \param index Index that this element is in reference to.
          */
-        ElementProxy(CPH5CompMemberArrayCommon<T, inh> *p,
+        ElementProxy(CPH5CompMemberArrayCommon<E, inh> *p,
                     int index)
             : mP(p),
               ind(index)
@@ -1432,27 +1391,27 @@ public:
          *        function of the CompMemberArray with the given index.
          * \param other Value to write.
          */
-        void operator=(const T other) {
+        void operator=(const E other) {
             mP->write(other, ind);
         }
         
         /*!
-         * \brief operator T Overloaded typecast operator. Calls the read
+         * \brief operator E Overloaded typecast operator. Calls the read
          *        function of the CompMemberArray with the given index, and
          *        returns the value read.
          */
-        operator T() {
+        operator E() {
             return mP->read(ind);
         }
         
         //TODO document
         virtual CPH5LeafType getLeafType() const override {
-            return static_cast<CPH5LeafType>(IsLeaf<T>::Get);
+            return static_cast<CPH5LeafType>(IsLeaf<E>::Get);
         }
         
         //TODO document
         virtual bool getValIfLeaf(void *p) override {
-            *reinterpret_cast<T*>(p) = mP->read(ind);
+            *reinterpret_cast<E*>(p) = mP->read(ind);
             return true;
         }
         
@@ -1479,12 +1438,12 @@ public:
         
         //TODO document
         virtual int getMemorySizeBelow() const override {
-            return sizeof(T);
+            return sizeof(E);
         }
         
         //TODO document
         virtual bool readAllBelow(void *p) override {
-            mP->read((T*)p);
+            mP->read((E*)p);
             return true;
         }
         
@@ -1505,7 +1464,7 @@ public:
         
         
     private:
-        CPH5CompMemberArrayCommon<T, inh> *mP;
+        CPH5CompMemberArrayCommon<E, inh> *mP;
         int ind;
     };
     
@@ -1536,8 +1495,8 @@ public:
         mNElements = nElements;
         
         mBaseType = type;
-        hsize_t d[] = {nElements};
-        mArrType = H5::ArrayType(mBaseType, 1, d);
+        hsize_t d[] = {static_cast<hsize_t>(nElements)};
+        mpArrType = std::make_shared<H5::ArrayType>(mBaseType, 1, d);
         
         pMT = new T[mNElements];
         memset(pMT, 0, sizeof(T)*nElements);
@@ -1548,7 +1507,7 @@ public:
      * \brief Destructor. Does nothing special.
      */
     virtual ~CPH5CompMemberArrayCommon() {
-        mArrType.close();
+        mpArrType.get()->close();
         delete[] pMT;
     }
     
@@ -1581,7 +1540,7 @@ public:
      * \return H5::DataType of fundamental type.
      */
     H5::DataType getType() const {
-        return mArrType;
+        return *mpArrType.get();
     }
     
     
@@ -1697,8 +1656,8 @@ public:
         if (mpParent != 0) {
             CPH5IOFacility *pIO = mpParent->getIOFacility();
             if (pIO != 0) {
-                H5::CompType h5CompType(mArrType.getSize());
-                h5CompType.insertMember(mName, 0, mArrType);
+                H5::CompType h5CompType(mpArrType.get()->getSize());
+                h5CompType.insertMember(mName, 0, *mpArrType.get());
                 //pIO->write(mT, h5CompType);
                 pIO->write(pMT, mpParent->nestCompTypeIR(h5CompType));
             } else if (mpArrParent != 0) {
@@ -1717,8 +1676,8 @@ public:
         if (mpParent != 0) {
             CPH5IOFacility *pIO = mpParent->getIOFacility();
             if (pIO != 0) {
-                H5::CompType h5CompType(mArrType.getSize());
-                h5CompType.insertMember(mName, 0, mArrType);
+                H5::CompType h5CompType(mpArrType.get()->getSize());
+                h5CompType.insertMember(mName, 0, *mpArrType.get());
                 //pIO->read(mT, h5CompType);
                 pIO->read(pMT, mpParent->nestCompTypeIR(h5CompType));
                 mReadDone = true;
@@ -1870,7 +1829,8 @@ protected:
     CPH5CompType *mpParent;
     std::string mName;
     H5::DataType mBaseType;
-    H5::ArrayType mArrType;
+    //H5::ArrayType mArrType;
+	std::shared_ptr<H5::ArrayType> mpArrType;
     int mNElements;
     //mutable T mT[nElements];
     mutable T *pMT;
@@ -1914,8 +1874,8 @@ public:
         
         mBaseType = T().getCompType();
         hsize_t d[] = {nElements};
-        mArrType = H5::ArrayType(mBaseType, 1, d);
-        
+        mpArrType = std::make_shared<H5::ArrayType>(mBaseType, 1, d);
+		
         mNElements = nElements;
         
         pmT = new T[nElements+1];
@@ -1948,9 +1908,9 @@ public:
             mpParent->registerMember(this);
         
         mBaseType = type;
-        hsize_t d[] = {nElements};
-        mArrType = H5::ArrayType(mBaseType, 1, d);
-        
+        hsize_t d[] = {static_cast<hsize_t>(nElements)};
+        mpArrType = std::make_shared<H5::ArrayType>(mBaseType, 1, d);
+		
         mNElements = nElements;
         
         pmT = new T[nElements+1];
@@ -2032,7 +1992,7 @@ public:
      * \return The H5::DataType for the array, actually an H5::ArrayType.
      */
     H5::DataType getType() const {
-        return mArrType;
+        return *mpArrType.get();
     }
     
     /*!
@@ -2185,8 +2145,8 @@ public:
             for (int i = 0; i < mNElements; ++i) {
                 pmT[i].copyAllAndMove(pBuf);
             }
-            H5::CompType thisCompType(mArrType.getSize());
-            thisCompType.insertMember(mName, 0, mArrType);
+            H5::CompType thisCompType(mpArrType.get()->getSize());
+            thisCompType.insertMember(mName, 0, *mpArrType.get());
             H5::DataType topCompType(mpParent->nestCompTypeIR(thisCompType));
             pioFacility->write(buf, topCompType);
         } catch (...) {
@@ -2210,8 +2170,8 @@ public:
         if (pioFacility == 0) {
             return;
         }
-        H5::CompType thisCompType(mArrType.getSize());
-        thisCompType.insertMember(mName, 0, mArrType);
+        H5::CompType thisCompType(mpArrType.get()->getSize());
+        thisCompType.insertMember(mName, 0, *mpArrType.get());
         H5::DataType topCompType(mpParent->nestCompTypeIR(thisCompType));
         std::vector<char> buf;
         buf.resize(topCompType.getSize());
@@ -2301,7 +2261,7 @@ protected:
     CPH5CompType *mpParent;
     std::string mName;
     H5::DataType mBaseType;
-    H5::ArrayType mArrType;
+	std::shared_ptr<H5::ArrayType> mpArrType;
     bool mReadDone;
     CPH5CompMemberArrayBase *mpArrParent;
     
@@ -2331,6 +2291,7 @@ template<class T, const int nElements>
 class CPH5CompMemberArray :
         public CPH5CompMemberArrayCommon<T, IsDerivedFrom<T, CPH5CompType>::Is>
 {
+	typedef CPH5CompMemberArrayCommon<T, IsDerivedFrom<T, CPH5CompType>::Is> CPH5CompMemberArrayCommonSpec;
 public:
     
     
@@ -2346,7 +2307,7 @@ public:
     CPH5CompMemberArray(CPH5CompType *parent,
                         std::string name,
                         H5::DataType type)
-        : CPH5CompMemberArrayCommon(parent, name, type, nElements)
+        : CPH5CompMemberArrayCommonSpec(parent, name, type, nElements)
     {} // NOOP
     
     
@@ -2358,7 +2319,7 @@ public:
      */
     CPH5CompMemberArray(CPH5CompType *parent,
                         std::string name)
-        : CPH5CompMemberArrayCommon(parent, name, nElements)
+        : CPH5CompMemberArrayCommonSpec(parent, name, nElements)
     {} // NOOP
     
     
@@ -2488,8 +2449,8 @@ public:
             if (mpParent != 0) {
                 CPH5IOFacility *pIO = mpParent->getIOFacility();
                 if (pIO != 0) {
-                    H5::CompType h5CompType(mArrType.getSize());
-                    h5CompType.insertMember(mName, 0, mArrType);
+                    H5::CompType h5CompType(mpArrType.get()->getSize());
+                    h5CompType.insertMember(mName, 0, *mpArrType.get());
                     pIO->write(pMT, mpParent->nestCompTypeIR(h5CompType));
                     //pIO->write(mT, h5CompType);
                 } else if (mpArrParent != 0) {
@@ -2522,6 +2483,68 @@ public:
 };
 
 
+
+
+
+// NON-INHERITED SPECIALIZATION method
+template<typename T, const int I>
+const T& CPH5CompMemberBaseThru<T, I>::get() const {
+    if (mpParent != 0) {
+        CPH5IOFacility *pIO = mpParent->getIOFacility();
+        if (pIO != 0) {
+            H5::CompType h5CompType(sizeof(T));
+            h5CompType.insertMember(mName, 0, mType);
+            pIO->read(&mT, mpParent->nestCompTypeIR(h5CompType));
+        }
+    }
+    return mT;
+}
+
+// NON-INHERITED SPECIALIZATION method
+template<typename T, const int I>
+void CPH5CompMemberBaseThru<T, I>::operator=(const T &other) {
+    mT = other;
+    if (mpParent != 0) {
+        CPH5IOFacility *pIO = mpParent->getIOFacility();
+        if (pIO != 0) {
+            H5::CompType h5CompType(sizeof(T));
+            h5CompType.insertMember(mName, 0, mType);
+            pIO->write(&mT, mpParent->nestCompTypeIR(h5CompType));
+            //pIO->write(&mT, h5CompType);
+        } else if (mpArrParent != 0) {
+            mpArrParent->signalChange();
+        }
+    }
+}
+
+// INHERITED SPECIALIZATION from CPH5CompType method
+template<class T>
+CPH5IOFacility *CPH5CompMemberBaseThru<T, IS_DERIVED>::getIOFacility() const {
+    if (mpParent != 0) {
+        return mpParent->getIOFacility();
+    }
+    return 0;
+}
+
+ 
+// INHERITED SPECIALIZATION from CPH5CompType method
+template<class T>
+H5::CompType CPH5CompMemberBaseThru<T, IS_DERIVED>::nestCompTypeIR(H5::CompType leaf) {
+    H5::CompType ret(leaf.getSize());
+    ret.insertMember(mName, 0, leaf);
+    if (mpParent != 0) {
+        return mpParent->nestCompTypeIR(ret);
+    } else {
+        return ret;
+    }
+}
+
+
+template<class T>
+// INHERITED SPECIALIZATION from CPH5CompType method
+void CPH5CompMemberBaseThru<T, IS_DERIVED>::setArrayParent(CPH5CompMemberArrayBase *pArrParent) {
+    CPH5CompType::setArrayParent(pArrParent);
+}
 
 
 #endif // CPH5COMPTYPE_H
