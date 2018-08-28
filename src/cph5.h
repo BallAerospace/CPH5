@@ -7,6 +7,7 @@
 
 // STD headers needed by the library
 #include <cstring>
+#include <memory>
 
 // HDF5
 #include "H5Cpp.h"
