@@ -225,7 +225,14 @@ public:
         
         mDataSpace = H5::DataSpace(0, 0);
     }
-    
+        
+    /*!
+     * \brief Destructor. Calls closeR
+     */
+    virtual ~CPH5Attribute()
+    {
+        closeR();
+    }
     
     /*!
      * \brief Recursive open function called from parent. Creates the
