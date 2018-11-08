@@ -10,6 +10,7 @@
 
 #include "H5Cpp.h"
 #include <vector>
+#include <memory>
 
 #define CPH_5_MAX_DIMS (32)
 
@@ -441,7 +442,8 @@ public:
         LT_INT32,
         LT_INT64,
         LT_FLOAT,
-        LT_DOUBLE
+        LT_DOUBLE,
+        LT_STRING
     };
     
     // Utility structs for determing leaf based on type
@@ -449,6 +451,7 @@ public:
     struct IsLeaf {
         enum { Get = LT_IS_NOT_LEAF };
     };
+
     
     virtual CPH5LeafType getLeafType() const = 0;
     virtual bool getValIfLeaf(void *p) = 0;
@@ -513,7 +516,10 @@ template<>
 struct CPH5TreeNode::IsLeaf<double> {
     enum { Get = LT_DOUBLE };
 };
-
+template<>
+struct CPH5TreeNode::IsLeaf<std::string> {
+    enum { Get = LT_STRING };
+};
 
 /*!
  * \brief The CPH5GroupMember class is a base interface class
