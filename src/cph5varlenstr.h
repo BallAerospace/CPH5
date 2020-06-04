@@ -28,8 +28,8 @@ public:
      */
     CPH5StrIOFacility() :
             mpDataSet(nullptr),
-            numDims(-1),
             mType(H5::StrType(0, H5T_VARIABLE)),
+            numDims(-1),
             mNumElem(1)
     {
     }
@@ -48,11 +48,19 @@ public:
     {
         mpDataSet = pDataSet;
         numDims = nDims;
+
+        // check to make sure the value is not negative
+        if (nDims < 0)
+        {
+            //set it to negative one if any negative value comes in
+            numDims = -1;
+        }
+
         mMaxDims.clear();
         mIndices.clear();
         for (int i = 0; i < nDims; ++i)
         {
-            mMaxDims.push_back(maxDims[i]);
+            mMaxDims.push_back(static_cast<int>(maxDims[i]));
         }
     }
 
@@ -70,7 +78,7 @@ public:
             return;
         }
         mIndices.push_back(ind);
-        if (mIndices.size() > numDims)
+        if (mIndices.size() > static_cast<std::size_t>(numDims))
         {
             // BIG PROBLEM, TOO MANY INDICES
         }
@@ -101,7 +109,7 @@ public:
         }
 
         std::vector<const char *> arr_c_str;
-        for (int ii = 0; ii < src.size(); ++ii)
+        for (std::size_t ii = 0; ii < src.size(); ++ii)
         {
             arr_c_str.emplace_back(src[ii].c_str());
         }
@@ -133,7 +141,7 @@ public:
         mpDataSet->read(cReadVal, mType, mMemspace, mFilespace);
 
         //create a vector with the data read in
-        for (int i = 0; i < mNumElem; ++i)
+        for (hsize_t i = 0; i < mNumElem; ++i)
         {
             std::string readVal;
             //make sure the value read in is not null
@@ -206,12 +214,12 @@ private:
 
         mNumElem = 1;
 
-        for (int i = 0; i < mIndices.size(); ++i)
+        for (std::size_t i = 0; i < mIndices.size(); ++i)
         {
             mOffsets[i] = mIndices[i];
         }
 
-        for (int i = 0; i < numDims; ++i)
+        for (std::size_t i = 0; i < static_cast<std::size_t>(numDims); ++i)
         {
             if (i < mIndices.size())
             {
@@ -405,7 +413,7 @@ public:
     }
 
     int getTotalMemorySize() const {
-        return mSBuf[0].size();
+        return static_cast<int>(mSBuf[0].size());
     }
 
     // Note that these are NOT virtual - this is by design.
@@ -417,7 +425,7 @@ public:
     }
 
     //TODO document
-    bool getValIfLeaf(void *p)
+    bool getValIfLeaf(void * /*p*/)
     {
         if (getLeafType() != CPH5TreeNode::LT_IS_NOT_LEAF)
         {
@@ -436,7 +444,7 @@ public:
 
     //TODO document
     int getMemorySizeBelow() const {
-        return mSBuf[0].size();
+        return static_cast<int>(mSBuf[0].size());
     }
 
     //TODO document
@@ -458,7 +466,7 @@ public:
     }
 
     //TODO document
-    CPH5TreeNode *getChildByName(std::string name) const
+    CPH5TreeNode *getChildByName(std::string /*name*/) const
                                  {
         // The template argument is not inherited from CPH5CompType, so there
         // is no children.
@@ -547,9 +555,9 @@ public:
                 std::string name)
     :
             CPH5GroupMember(name),
+            CPH5VarLenStrBase<nDims>(mpIOFacility = new CPH5StrIOFacility),
             mpGroupParent(parent),
             mpDimParent(0),
-            CPH5VarLenStrBase<nDims>(mpIOFacility = new CPH5StrIOFacility),
             mNextDim(this),
             mpDataSet(0),
             mDimsSet(false),
@@ -1024,7 +1032,7 @@ public:
     }
 
     //TODO document
-    bool getValIfLeaf(void *p) override
+    bool getValIfLeaf(void * /*p*/) override
     {
         // A non-scalar dataset is never a leaf.
         return false;
@@ -1055,11 +1063,11 @@ public:
 
     //TODO document
     int getMemorySizeBelow() const {
-        return mpIOFacility->getNumLowerElements();
+        return static_cast<int>(mpIOFacility->getNumLowerElements());
     }
 
     //TODO document
-    bool readAllBelow(void *p) {
+    bool readAllBelow(void * /*p*/) {
         //read(p);
         return true;
     }
@@ -1076,7 +1084,7 @@ public:
     }
 
     //TODO document
-    CPH5TreeNode *getChildByName(std::string name) const override
+    CPH5TreeNode *getChildByName(std::string /*name*/) const override
     {
         return 0;
     }
@@ -1222,7 +1230,7 @@ private:
                 //Future: proper error. For now just return.
                 return 0;
             }
-            return mDims[dimsBelow];
+            return static_cast<int>(mDims[dimsBelow]);
         }
         else
         {
@@ -1301,10 +1309,10 @@ public:
     CPH5VarLenStr(CPH5Group *parent,
                 std::string name)
     :
-            CPH5GroupMember(name),
-            mpGroupParent(parent),
-            mpDimParent(0),
             CPH5VarLenStrBase<0>(mpIOFacility = new CPH5StrIOFacility),
+            CPH5GroupMember(name),
+            mpDimParent(0),
+            mpGroupParent(parent),
             mpDataSet(0)
     {
         parent->registerChild(this);
@@ -1566,7 +1574,7 @@ public:
     }
 
     //TODO document
-    CPH5TreeNode *indexInto(int i) override
+    CPH5TreeNode *indexInto(int /*i*/) override
     {
         return 0;
     }
@@ -1590,7 +1598,7 @@ public:
     }
 
     //TODO document
-    bool readAllBelow(void *p) {
+    bool readAllBelow(void * /*p*/) {
         //read(p);
         return true;
     }
@@ -1635,12 +1643,12 @@ private:
      */
     CPH5VarLenStr(CPH5VarLenStr<1> *parent)
     :
+            CPH5VarLenStrBase<0>(parent->getIOFacility()),
             CPH5GroupMember(""),
             mpDimParent(parent),
             mpGroupParent(0),
             mpDataSet(0),
-            mpIOFacility(parent->getIOFacility()),
-            CPH5VarLenStrBase<0>(parent->getIOFacility())
+            mpIOFacility(parent->getIOFacility())
     {
     } // NOOP
 
@@ -1648,16 +1656,16 @@ private:
      * \brief Recursive function for resizing the entire dataset all at once.
      * \param dims Sizes of this objects rank to resize to.
      */
-    void resizeToR(hsize_t *dims)
+    void resizeToR(hsize_t * /*dims*/)
     {
         // This should never be called
         //Future: proper error. For now just return.
         return;
     }
 
-    H5::DataSet *mpDataSet;
-    CPH5Group *mpGroupParent;
     CPH5VarLenStr<1> *mpDimParent;
+    CPH5Group *mpGroupParent;
+    H5::DataSet *mpDataSet;
     CPH5StrIOFacility *mpIOFacility;
 
     typedef std::vector<CPH5AttributeInterface*> ChildList;
@@ -1693,13 +1701,13 @@ public:
     {
         return 0;
     }
-    H5::Attribute *createAttribute(std::string name,
-                                   H5::DataType dataType,
-                                   H5::DataSpace space)
+    H5::Attribute *createAttribute(std::string /*name*/,
+                                   H5::DataType /*dataType*/,
+                                   H5::DataSpace /*space*/)
     {
         return 0;
     }
-    H5::Attribute *openAttribute(std::string name)
+    H5::Attribute *openAttribute(std::string /*name*/)
     {
         return 0;
     }
@@ -1726,7 +1734,7 @@ public:
     {
         return CPH5TreeNode::LT_IS_NOT_LEAF;
     }
-    bool getValIfLeaf(void *p)
+    bool getValIfLeaf(void * /*p*/)
     {
         return false;
     }
@@ -1734,7 +1742,7 @@ public:
     {
         return false;
     }
-    CPH5TreeNode *indexInto(int i)
+    CPH5TreeNode *indexInto(int /*i*/)
     {
         return 0;
     }
@@ -1749,7 +1757,7 @@ public:
     {
         return std::vector<std::string>();
     }
-    CPH5TreeNode *getChildByName(std::string name) const
+    CPH5TreeNode *getChildByName(std::string /*name*/) const
                                  {
         return 0;
     }

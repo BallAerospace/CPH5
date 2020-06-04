@@ -15,9 +15,6 @@
 #include "cph5utilities.h"
 
 
-#ifdef _MSC_VER
-#pragma warning(disable: 4355 4706 4115 4100 4201 4214 4054)
-#endif /* _MSC_VER */
 
 
 
@@ -50,8 +47,8 @@ public:
     CPH5Group(CPH5Group *parent, std::string name)
         : CPH5GroupMember(name),
           mpParent(parent),
-          mpFile(0),
-          mpGroup(0)
+          mpGroup(0),
+          mpFile(0)
     {
         if (mpParent != 0)
             mpParent->registerChild(this);
@@ -66,8 +63,8 @@ public:
     CPH5Group()
         : CPH5GroupMember("/"),
           mpParent(0),
-          mpFile(0),
-          mpGroup(0)
+          mpGroup(0),
+          mpFile(0)
     {
         //NOOP
     }
@@ -82,7 +79,7 @@ public:
         closeR();
         
         // Delete all the external children
-        for (int i = 0; i < mExternalChildren.size(); ++i) {
+        for (std::size_t i = 0; i < mExternalChildren.size(); ++i) {
             delete mExternalChildren[i];
         }
         mExternalChildren.clear();
@@ -447,7 +444,7 @@ public:
      *        to be copied.
      * \param other
      */
-    void operator=(const CPH5Group &other) {} // NOOP
+    void operator=(const CPH5Group &/*other*/) {} // NOOP
     
     
     /*!
@@ -455,7 +452,7 @@ public:
      * \return Number of children in the group.
      */
     int numChildren() const {
-       return mChildren.size();
+       return static_cast<int>(mChildren.size());
     }
     
     
@@ -465,7 +462,7 @@ public:
      * \return Pointer to child
      */
     CPH5GroupMember *childAt(int i) const {
-       if (i < 0 || i >= mChildren.size()) return 0;
+       if (i < 0 || static_cast<std::size_t>(i) >= mChildren.size()) return 0;
        return mChildren.at(i);
     }
     
@@ -494,7 +491,7 @@ public:
     }
     
     //TODO document
-    bool getValIfLeaf(void *p) override {
+    bool getValIfLeaf(void * /*p*/) override {
         // A group is never a leaf.
         return false;
     }
@@ -505,7 +502,7 @@ public:
     }
     
     //TODO document
-    CPH5TreeNode *indexInto(int i) override {
+    CPH5TreeNode *indexInto(int /*i*/) override {
         return 0;
     }
     
@@ -527,7 +524,7 @@ public:
     }
     
     //TODO document
-    bool readAllBelow(void *p) {
+    bool readAllBelow(void * /*p*/) {
         // Cannot use this at a group level.
         return false;
     }
@@ -541,7 +538,7 @@ public:
     std::vector<std::string> getChildrenNames() const override {
         std::vector<std::string> ret;
         if (!mChildren.empty()) {
-            for (int i = 0; i < mChildren.size(); ++i) {
+            for (std::size_t i = 0; i < mChildren.size(); ++i) {
                 ret.push_back(mChildren.at(i)->getName());
             }
         }
@@ -551,7 +548,7 @@ public:
     //TODO document
     CPH5TreeNode *getChildByName(std::string name) const override {
         if (!mChildren.empty()) {
-            for (int i = 0; i < mChildren.size(); ++i) {
+            for (std::size_t i = 0; i < mChildren.size(); ++i) {
                 if (mChildren.at(i)->getName() == name) {
                     return dynamic_cast<CPH5TreeNode*>(mChildren.at(i));
                 }
@@ -652,7 +649,7 @@ private:
      *         not be overwritten (such as if the user were to hit a cancel
      *         button).
      */
-    virtual bool createOrOverwriteAssist(std::string filename) {
+    virtual bool createOrOverwriteAssist(std::string /*filename*/) {
         return true;
     }
     

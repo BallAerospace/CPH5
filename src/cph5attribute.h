@@ -292,7 +292,7 @@ public:
     }
     
     //TODO document
-    virtual bool getValIfLeaf(void *p) override {
+    virtual bool getValIfLeaf(void * /*p*/) override {
         return false;
     }
     
@@ -302,7 +302,7 @@ public:
     }
     
     //TODO document
-    virtual CPH5TreeNode *indexInto(int i) override {
+    virtual CPH5TreeNode *indexInto(int /*i*/) override {
         return 0;
     }
     
@@ -322,7 +322,7 @@ public:
     }
     
     //TODO document
-    virtual bool readAllBelow(void *p) override {
+    virtual bool readAllBelow(void * /*p*/) override {
         return false;
     }
     
@@ -337,7 +337,7 @@ public:
     }
     
     //TODO document
-    virtual CPH5TreeNode *getChildByName(std::string name) const override {
+    virtual CPH5TreeNode *getChildByName(std::string /*name*/) const override {
         return 0;
     }
     

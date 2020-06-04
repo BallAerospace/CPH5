@@ -13,9 +13,7 @@
 #include "cph5comptype.h"
 
 
-#ifdef _MSC_VER
-#pragma warning(disable: 4355 4706 4115 4100 4201 4214 4054 4244 4267)
-#endif /* _MSC_VER */
+
 
 
 // C++11 upgrade list:
@@ -305,7 +303,7 @@ public:
     }
     
     //TODO document
-    CPH5TreeNode *getChildByName(std::string name) const {
+    CPH5TreeNode *getChildByName(std::string /*name*/) const {
         // The template argument is not inherited from CPH5CompType, so there
         // is no children.
         return 0;
@@ -407,7 +405,7 @@ public:
     // Future enhancement: figure out how to do this without making two copies.
     void read(T *items) {
         if (mpIOFacility != 0) {
-            int nElements = mpIOFacility->getNumLowerElements();
+            int nElements = static_cast<int>(mpIOFacility->getNumLowerElements());
             char *pBuf = new char[items->getTotalMemorySize()*nElements];
             try {
                 mpIOFacility->read(pBuf);
@@ -619,7 +617,7 @@ public:
     }
     
     //TODO document
-    virtual bool getValIfLeaf(void *p) {
+    virtual bool getValIfLeaf(void * /*p*/) {
         return false;
     }
     
@@ -726,10 +724,10 @@ public:
               std::string name,
               H5::DataType type)
         : CPH5GroupMember(name),
+          CPH5DatasetBaseSpec(mpIOFacility = new CPH5IOFacility,
+                              type),
           mpGroupParent(parent),
           mpDimParent(0),
-          CPH5DatasetBaseSpec(mpIOFacility = new CPH5IOFacility,
-                          type),
           mNextDim(this, type),
           mpDataSet(0),
           mDimsSet(false),
@@ -757,10 +755,10 @@ public:
               std::string name,
               H5::CompType type)
         : CPH5GroupMember(name),
+          CPH5DatasetBaseSpec(mpIOFacility = new CPH5IOFacility,
+                              type),
           mpGroupParent(parent),
           mpDimParent(0),
-          CPH5DatasetBaseSpec(mpIOFacility = new CPH5IOFacility,
-                          type),
           mNextDim(this, type),
           mpDataSet(0),
           mDimsSet(false),
@@ -788,9 +786,9 @@ public:
     CPH5Dataset(CPH5Group *parent,
               std::string name)
         : CPH5GroupMember(name),
+          CPH5DatasetBaseSpec(mpIOFacility = new CPH5IOFacility),
           mpGroupParent(parent),
           mpDimParent(0),
-          CPH5DatasetBaseSpec(mpIOFacility = new CPH5IOFacility),
           mNextDim(this),
           mpDataSet(0),
           mDimsSet(false),
@@ -1388,7 +1386,7 @@ public:
     }
     
     //TODO document
-    bool getValIfLeaf(void *p) override {
+    bool getValIfLeaf(void * /*p*/) override {
         // A non-scalar dataset is never a leaf.
         return false;
     }
@@ -1437,7 +1435,7 @@ public:
     
     //TODO document
     int getMemorySizeBelow() const {
-        return mpIOFacility->getSizeLowerElements();
+        return static_cast<int>(mpIOFacility->getSizeLowerElements());
     }
     
     //TODO document
@@ -1457,7 +1455,7 @@ public:
     }
     
     //TODO document
-    CPH5TreeNode *getChildByName(std::string name) const override {
+    CPH5TreeNode *getChildByName(std::string /*name*/) const override {
         return 0;
     }
     
@@ -1490,6 +1488,7 @@ private:
      */
     CPH5Dataset(CPH5Dataset<T, nDims+1> *parent)
         : CPH5GroupMember(""),
+          CPH5DatasetBaseSpec(parent->getIOFacility()),
           mpGroupParent(0),
           mpDimParent(parent),
           mNextDim(this),
@@ -1497,8 +1496,7 @@ private:
           mDimsSet(false),
           mpIOFacility(parent->getIOFacility()),
           mChunksSet(false),
-          mDeflateSet(false),
-          CPH5DatasetBaseSpec(parent->getIOFacility())
+          mDeflateSet(false)
     {
         memset(mDims, 0, nDims*4);
         memset(mMaxDims, 0, nDims*4);
@@ -1522,6 +1520,7 @@ private:
     CPH5Dataset(CPH5Dataset<T, nDims+1> *parent,
                 H5::CompType type)
         : CPH5GroupMember(""),
+          CPH5DatasetBaseSpec(parent->getIOFacility(), type),
           mpGroupParent(0),
           mpDimParent(parent),
           mNextDim(this, type),
@@ -1529,8 +1528,7 @@ private:
           mDimsSet(false),
           mpIOFacility(parent->getIOFacility()),
           mChunksSet(false),
-          mDeflateSet(false),
-          CPH5DatasetBaseSpec(parent->getIOFacility(), type)
+          mDeflateSet(false)
     {
         // Should only be used if a dataset of non-compound types
         memset(mDims, 0, nDims*4);
@@ -1554,6 +1552,7 @@ private:
     CPH5Dataset(CPH5Dataset<T, nDims+1> *parent,
                 H5::DataType type)
         : CPH5GroupMember(""),
+          CPH5DatasetBaseSpec(parent->getIOFacility(), type),
           mpGroupParent(0),
           mpDimParent(parent),
           mNextDim(this, type),
@@ -1561,8 +1560,7 @@ private:
           mDimsSet(false),
           mpIOFacility(parent->getIOFacility()),
           mChunksSet(false),
-          mDeflateSet(false),
-          CPH5DatasetBaseSpec(parent->getIOFacility(), type)
+          mDeflateSet(false)
     {
         // Should only be used if a dataset of non-compound types
         memset(mDims, 0, nDims*4);
@@ -1656,7 +1654,7 @@ private:
                 //Future: proper error. For now just return.
                 return 0;
             }
-            return mDims[dimsBelow];
+            return static_cast<int>(mDims[dimsBelow]);
         } else {
             return mpDimParent->getDimSizeIR(dimsBelow+1);
         }
@@ -1688,15 +1686,17 @@ private:
     
     CPH5Group *mpGroupParent;
     CPH5Dataset<T, nDims+1> *mpDimParent;
-    CPH5IOFacility *mpIOFacility;
     CPH5Dataset<T, nDims-1> mNextDim;
-    hsize_t mDims[nDims+1];
-    hsize_t mMaxDims[nDims+1];
     H5::DataSet *mpDataSet;
-    H5::DSetCreatPropList mPropList;
     bool mDimsSet;
+    CPH5IOFacility *mpIOFacility;
     bool mChunksSet;
     bool mDeflateSet;
+    hsize_t mDims[nDims+1];
+    hsize_t mMaxDims[nDims+1];
+    H5::DSetCreatPropList mPropList;
+
+
     
     typedef std::vector<CPH5AttributeInterface *> ChildList;
     ChildList mChildren;
@@ -1736,10 +1736,10 @@ public:
     CPH5Dataset(CPH5Group *parent,
                 std::string name,
                 H5::DataType type)
-        : CPH5GroupMember(name),
-          mpGroupParent(parent),
+        : CPH5DatasetBaseSpec(mpIOFacility = new CPH5IOFacility, type),
+          CPH5GroupMember(name),
           mpDimParent(0),
-          CPH5DatasetBaseSpec(mpIOFacility = new CPH5IOFacility, type),
+          mpGroupParent(parent),
           mpDataSet(0)
     {
         parent->registerChild(this);
@@ -1758,10 +1758,10 @@ public:
     CPH5Dataset(CPH5Group *parent,
                 std::string name,
                 H5::CompType type)
-        : CPH5GroupMember(name),
-          mpGroupParent(parent),
+        : CPH5DatasetBaseSpec(mpIOFacility = new CPH5IOFacility, type),
+          CPH5GroupMember(name),
           mpDimParent(0),
-          CPH5DatasetBaseSpec(mpIOFacility = new CPH5IOFacility, type),
+          mpGroupParent(parent),
           mpDataSet(0)
     {
         parent->registerChild(this);
@@ -1781,10 +1781,10 @@ public:
      */
     CPH5Dataset(CPH5Group *parent,
                 std::string name)
-        : CPH5GroupMember(name),
-          mpGroupParent(parent),
+        : CPH5DatasetBaseSpec(mpIOFacility = new CPH5IOFacility),
+          CPH5GroupMember(name),
           mpDimParent(0),
-          CPH5DatasetBaseSpec(mpIOFacility = new CPH5IOFacility),
+          mpGroupParent(parent),
           mpDataSet(0)
     {
         parent->registerChild(this);
@@ -2015,7 +2015,7 @@ public:
     }
     
     //TODO document
-    CPH5TreeNode *indexInto(int i) override {
+    CPH5TreeNode *indexInto(int /*i*/) override {
         return 0;
     }
     
@@ -2077,12 +2077,12 @@ private:
      * \param parent Pointer to parent dataset. 
      */
     CPH5Dataset(CPH5Dataset<T, 1> *parent)
-        : CPH5GroupMember(""),
+        : CPH5DatasetBaseSpec(parent->getIOFacility()),
+          CPH5GroupMember(""),
           mpDimParent(parent),
           mpGroupParent(0),
           mpDataSet(0),
-          mpIOFacility(parent->getIOFacility()),
-          CPH5DatasetBaseSpec(parent->getIOFacility())
+          mpIOFacility(parent->getIOFacility())
     {
         CPH5DatasetBaseSpec::mType = parent->mType;
     }
@@ -2097,12 +2097,12 @@ private:
      */
     CPH5Dataset(CPH5Dataset<T, 1> *parent,
                 H5::DataType type)
-        : CPH5GroupMember(""),
+        : CPH5DatasetBaseSpec(parent->getIOFacility(), type),
+          CPH5GroupMember(""),
           mpDimParent(parent),
           mpGroupParent(0),
           mpDataSet(0),
-          mpIOFacility(parent->getIOFacility()),
-          CPH5DatasetBaseSpec(parent->getIOFacility(), type)
+          mpIOFacility(parent->getIOFacility())
     {} // NOOP
     
     /*!
@@ -2115,12 +2115,12 @@ private:
      */
     CPH5Dataset(CPH5Dataset<T, 1> *parent,
                 H5::CompType type)
-        : CPH5GroupMember(""),
+        : CPH5DatasetBaseSpec(parent->getIOFacility(), type),
+          CPH5GroupMember(""),
           mpDimParent(parent),
           mpGroupParent(0),
           mpDataSet(0),
-          mpIOFacility(parent->getIOFacility()),
-          CPH5DatasetBaseSpec(parent->getIOFacility(), type)
+          mpIOFacility(parent->getIOFacility())
     {} // NOOP
     
     
@@ -2128,15 +2128,15 @@ private:
      * \brief Recursive function for resizing the entire dataset all at once.
      * \param dims Sizes of this objects rank to resize to.
      */
-    void resizeToR(hsize_t *dims) {
+    void resizeToR(hsize_t * /*dims*/) {
         // This should never be called
         //Future: proper error. For now just return.
         return;
     }
-    
-    H5::DataSet *mpDataSet;
-    CPH5Group *mpGroupParent;
+
     CPH5Dataset<T, 1> *mpDimParent;
+    CPH5Group *mpGroupParent;
+    H5::DataSet *mpDataSet;
     CPH5IOFacility *mpIOFacility;
     
     typedef std::vector<CPH5AttributeInterface*> ChildList;
@@ -2166,12 +2166,12 @@ public:
     CPH5IOFacility *getIOFacility() {
         return 0;
     }
-    H5::Attribute *createAttribute(std::string name,
-                                   H5::DataType dataType,
-                                   H5::DataSpace space) {
+    H5::Attribute *createAttribute(std::string /*name*/,
+                                   H5::DataType /*dataType*/,
+                                   H5::DataSpace /*space*/) {
         return 0;
     }
-    H5::Attribute *openAttribute(std::string name) {
+    H5::Attribute *openAttribute(std::string /*name*/) {
         return 0;
     }
     void registerAttribute(CPH5AttributeInterface *) {} // NOOP
@@ -2182,13 +2182,13 @@ public:
     
     // These may or may not be necessary.
     CPH5TreeNode::CPH5LeafType getLeafType() const { return CPH5TreeNode::LT_IS_NOT_LEAF; }
-    bool getValIfLeaf(void *p) { return false; }
+    bool getValIfLeaf(void * /*p*/) { return false; }
     bool canIndexInto() const { return false; }
-    CPH5TreeNode *indexInto(int i) { return 0; }
+    CPH5TreeNode *indexInto(int /*i*/) { return 0; }
     int getIndexableSize() const { return 0; }
     void *getMemoryLocation() const { return 0; }
     std::vector<std::string> getChildrenNames() const { return std::vector<std::string>(); }
-    CPH5TreeNode *getChildByName(std::string name) const { return 0; }
+    CPH5TreeNode *getChildByName(std::string /*name*/) const { return 0; }
     
 private:
     CPH5Dataset()
