@@ -733,7 +733,8 @@ public:
           mNextDim(this, type),
           mpDataSet(0),
           mDimsSet(false),
-          mChunksSet(false)
+          mChunksSet(false),
+          mDeflateSet(false)
     {
         memset(mDims, 0, nDims*4);
         memset(mMaxDims, 0, nDims*4);
@@ -763,7 +764,8 @@ public:
           mNextDim(this, type),
           mpDataSet(0),
           mDimsSet(false),
-          mChunksSet(false)
+          mChunksSet(false),
+          mDeflateSet(false)
     {
         memset(mDims, 0, nDims*4);
         memset(mMaxDims, 0, nDims*4);
@@ -792,7 +794,8 @@ public:
           mNextDim(this),
           mpDataSet(0),
           mDimsSet(false),
-          mChunksSet(false)
+          mChunksSet(false),
+          mDeflateSet(false)
     {
         memset(mDims, 0, nDims*4);
         memset(mMaxDims, 0, nDims*4);
@@ -986,7 +989,33 @@ public:
         mPropList.setChunk(nDims, chunkDims);
         mChunksSet = true;
     }
-    
+
+    /*!
+     * \brief Sets the compression to use to store memory for this dataset
+     *        in the target HDF5 file. This should not be called on a non
+     *        root-order object. Reference the HDF5 online documentation for
+     *        the best application of this. Note that datasets with
+     *        compression set need their chunk size to be set.
+     * \param level Integer with the level of compression (1-9) to use
+     *
+     *
+     * */
+    void setDeflateLevel(int level) {
+        mPropList.setDeflate(level);
+        mDeflateSet = true;
+    }
+
+    /*!
+     * \brief Set the fill value for the dataset. The value needs to be convertible
+     *        into the dataset type for this dataset. Reference the HDF5 online documentation for
+     *        the best application of this.
+     * \param fillVal value to set all the element values by default
+     *
+     *
+     * */
+    void setFillValue(T fillVal) {
+        mPropList.setFillValue(this->mType, &fillVal);
+    }
     
     /*!
      * \brief Writes data from a pointer to an array of type T to
@@ -1468,6 +1497,7 @@ private:
           mDimsSet(false),
           mpIOFacility(parent->getIOFacility()),
           mChunksSet(false),
+          mDeflateSet(false),
           CPH5DatasetBaseSpec(parent->getIOFacility())
     {
         memset(mDims, 0, nDims*4);
@@ -1499,6 +1529,7 @@ private:
           mDimsSet(false),
           mpIOFacility(parent->getIOFacility()),
           mChunksSet(false),
+          mDeflateSet(false),
           CPH5DatasetBaseSpec(parent->getIOFacility(), type)
     {
         // Should only be used if a dataset of non-compound types
@@ -1530,6 +1561,7 @@ private:
           mDimsSet(false),
           mpIOFacility(parent->getIOFacility()),
           mChunksSet(false),
+          mDeflateSet(false),
           CPH5DatasetBaseSpec(parent->getIOFacility(), type)
     {
         // Should only be used if a dataset of non-compound types
@@ -1664,6 +1696,7 @@ private:
     H5::DSetCreatPropList mPropList;
     bool mDimsSet;
     bool mChunksSet;
+    bool mDeflateSet;
     
     typedef std::vector<CPH5AttributeInterface *> ChildList;
     ChildList mChildren;
