@@ -15,9 +15,6 @@
 #define CPH_5_MAX_DIMS (32)
 
 
-#ifdef _MSC_VER
-#pragma warning(disable: 4355 4706 4115 4100 4201 4214 4054)
-#endif /* _MSC_VER */
 
 // Macros for the constructor initializer list, if applicable:
 #define CPH5_CONSTRUCT(a) a(this, #a)
@@ -25,17 +22,17 @@
 
 namespace CPH5Swappers {
     
-    inline static void swap_in_place(uint8_t *y)
+    inline static void swap_in_place(uint8_t * /*y*/)
     {
         // Do nothing
     }
     
-    inline static void swap_in_place(int8_t *y)
+    inline static void swap_in_place(int8_t * /*y*/)
     {
         // Do nothing
     }
     
-    inline static void swap_in_place(char *y)
+    inline static void swap_in_place(char * /*y*/)
     {
         // Do nothing
     }
@@ -148,10 +145,18 @@ public:
         mpDataSet = pDataSet;
         mType = type;
         numDims = nDims;
+
+        // check to make sure the value is not negative
+        if (nDims < 0)
+        {
+            //set it to negative one if any negative value comes in
+            numDims = -1;
+        }
+
         mMaxDims.clear();
         mIndices.clear();
         for (int i = 0; i < nDims; ++i) {
-            mMaxDims.push_back(maxDims[i]);
+            mMaxDims.push_back(static_cast<int>(maxDims[i]));
         }
     }
     
@@ -168,7 +173,7 @@ public:
             return;
         }
         mIndices.push_back(ind);
-        if (mIndices.size() > numDims) {
+        if (mIndices.size() > static_cast<std::size_t>(numDims)) {
             // BIG PROBLEM, TOO MANY INDICES
         }
     }
@@ -309,10 +314,10 @@ private:
         hsize_t offsets[CPH_5_MAX_DIMS];
         memset(offsets, 0, CPH_5_MAX_DIMS*4);
         hsize_t extents[CPH_5_MAX_DIMS];
-        for (int i = 0; i < mIndices.size(); ++i) {
+        for (std::size_t i = 0; i < mIndices.size(); ++i) {
             offsets[i] = mIndices[i];
         }
-        for (int i = 0; i < numDims; ++i) {
+        for (std::size_t i = 0; i < static_cast<std::size_t>(numDims); ++i) {
             if (i < mIndices.size()) {
                 extents[i] = 1;
             } else {
@@ -345,11 +350,11 @@ private:
         hsize_t offsets[CPH_5_MAX_DIMS];
         memset(offsets, 0, CPH_5_MAX_DIMS*4);
         hsize_t extents[CPH_5_MAX_DIMS];
-        for (int i = 0; i < mIndices.size(); ++i) {
+        for (std::size_t i = 0; i < mIndices.size(); ++i) {
             offsets[i] = mIndices[i];
         }
         offsets[mIndices.size()] = offset;
-        for (int i = 0; i < numDims; ++i) {
+        for (std::size_t i = 0; i < static_cast<std::size_t>(numDims); ++i) {
             if (i < mIndices.size()) {
                 extents[i] = 1;
             } else if (i == mIndices.size()) {

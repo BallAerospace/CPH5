@@ -9,10 +9,6 @@
 #define CPH5COMPTYPE_H
 
 
-#ifdef _MSC_VER
-#pragma warning(disable: 4355 4706 4115 4100 4201 4214 4054 4244 4267)
-#endif /* _MSC_VER */
-
 
 #include "H5Cpp.h"
 #include "cph5utilities.h"
@@ -281,7 +277,7 @@ public:
     }
     
     //TODO document
-    virtual CPH5TreeNode *indexInto(int i) override {
+    virtual CPH5TreeNode *indexInto(int /*i*/) override {
         return 0;
     }
     
@@ -318,7 +314,7 @@ public:
     }
     
     //TODO document
-    virtual CPH5TreeNode *getChildByName(std::string name) const override {
+    virtual CPH5TreeNode *getChildByName(std::string /*name*/) const override {
         return 0;
     }
     
@@ -530,7 +526,7 @@ public:
     }
     
     //TODO document
-    virtual bool getValIfLeaf(void *p) override {
+    virtual bool getValIfLeaf(void * /*p*/) override {
         // A compound type is never a leaf;
         return false;
     }
@@ -542,7 +538,7 @@ public:
     }
     
     //TODO document
-    virtual CPH5TreeNode *indexInto(int i) override {
+    virtual CPH5TreeNode *indexInto(int /*i*/) override {
         // This is not an array
         return 0;
     }
@@ -565,7 +561,7 @@ public:
     }
     
     //TODO document
-    virtual bool readAllBelow(void *p) override {
+    virtual bool readAllBelow(void * /*p*/) override {
         // This cannot be implemented here, must be implemented
         // in CPH5CompMember
         return false;
@@ -619,8 +615,8 @@ public:
      */
     CPH5CompType()
         : mpFacility(0),
-          mCompTreeWrapper(this),
-          mpArrParent(0)
+          mpArrParent(0),
+          mCompTreeWrapper(this)
     {} // NOOP
     
     /*!
@@ -629,7 +625,7 @@ public:
      */
     virtual ~CPH5CompType() {
         // Delete all the external children
-        for (int i = 0; i < mExternalChildren.size(); ++i) {
+        for (std::size_t i = 0; i < mExternalChildren.size(); ++i) {
             delete mExternalChildren.at(i);
         }
         mExternalChildren.clear();
@@ -919,12 +915,12 @@ public:
     
     
     int numChildren() const {
-        return mChildren.size();
+        return static_cast<int>(mChildren.size());
     }
     
     
     CPH5CompMemberBase *getChildAt(int ind) {
-        if (ind >= 0 && ind < mChildren.size()) {
+        if (ind >= 0 && static_cast<std::size_t>(ind) < mChildren.size()) {
             return mChildren[ind];
         }
 		return nullptr;
@@ -950,7 +946,7 @@ public:
         }
         
         //TODO document
-        virtual bool getValIfLeaf(void *p) override {
+        virtual bool getValIfLeaf(void * /*p*/) override {
             return false;
         }
         
@@ -960,7 +956,7 @@ public:
         }
         
         //TODO document
-        virtual CPH5TreeNode *indexInto(int i) override {
+        virtual CPH5TreeNode *indexInto(int /*i*/) override {
             return 0;
         }
         
@@ -1421,7 +1417,7 @@ public:
         }
         
         //TODO document
-        virtual CPH5TreeNode *indexInto(int i) override {
+        virtual CPH5TreeNode *indexInto(int /*i*/) override {
             return 0;
         }
         
@@ -1458,7 +1454,7 @@ public:
         }
         
         //TODO document
-        virtual CPH5TreeNode *getChildByName(std::string name) const override {
+        virtual CPH5TreeNode *getChildByName(std::string /*name*/) const override {
             return 0;
         }
         
@@ -1762,7 +1758,7 @@ public:
     }
     
     //TODO document
-    virtual bool getValIfLeaf(void *p) override {
+    virtual bool getValIfLeaf(void * /*p*/) override {
         // Arrays are never leaves.
         return false;
     }
@@ -1813,7 +1809,7 @@ public:
     }
     
     //TODO document
-    virtual CPH5TreeNode *getChildByName(std::string name) const override {
+    virtual CPH5TreeNode *getChildByName(std::string /*name*/) const override {
         return 0;
     }
     
